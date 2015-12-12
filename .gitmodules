@@ -1,0 +1,6 @@
+[submodule "external/json_backbone"]
+	path = external/json_backbone
+	url = https://github.com/duckie/json_backbone.git
+[submodule "external/rapidjson"]
+	path = external/rapidjson
+	url = https://github.com/miloyip/rapidjson.git
