@@ -1,3 +1,4 @@
+include(ExternalProject)
 include_directories(
   ${PROJECT_SOURCE_DIR}/includes/
   ${PROJECT_BINARY_DIR}/includes/
@@ -20,6 +21,35 @@ include_directories(${PROJECT_SOURCE_DIR}/external/json_backbone/include)
 #endif()
 
 Find_Package(Threads REQUIRED)
+
+# MongoDB driver
+ExternalProject_Add(libbson
+  PREFIX ${PROJECT_BINARY_DIR}
+  SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/libbson
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR}
+  )
+ExternalProject_Add(libmongoc
+  DEPENDS libbson
+  PREFIX ${PROJECT_BINARY_DIR}
+  SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/libmongoc
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR}
+  )
+ExternalProject_Add(mongodb-cxx-driver
+  DEPENDS libbson libmongoc
+  PREFIX ${PROJECT_BINARY_DIR}
+  SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR} -DCMAKE_PREFIX_PATH:PATH=${PROJECT_BINARY_DIR}
+  )
+
+include_directories(
+  ${PROJECT_BINARY_DIR}/include
+  ${PROJECT_BINARY_DIR}/include/bsoncxx 
+  ${PROJECT_BINARY_DIR}/include/libbson-1.0
+  ${PROJECT_BINARY_DIR}/include/libmongoc-1.0
+  ${PROJECT_BINARY_DIR}/include/mongocxx
+  )
+link_directories(${PROJECT_BINARY_DIR}/lib)
+set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)
 
 # Rapidjson support
 set(RAPIDJSON_INCLUDEDIR ${PROJECT_SOURCE_DIR}/external/rapidjson/include)
