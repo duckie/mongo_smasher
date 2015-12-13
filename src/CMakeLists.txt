@@ -43,10 +43,10 @@ ExternalProject_Add(mongodb-cxx-driver
 
 include_directories(
   ${PROJECT_BINARY_DIR}/include
-  ${PROJECT_BINARY_DIR}/include/bsoncxx 
+  ${PROJECT_BINARY_DIR}/include/bsoncxx/v0.3
   ${PROJECT_BINARY_DIR}/include/libbson-1.0
   ${PROJECT_BINARY_DIR}/include/libmongoc-1.0
-  ${PROJECT_BINARY_DIR}/include/mongocxx
+  ${PROJECT_BINARY_DIR}/include/mongocxx/v0.3
   )
 link_directories(${PROJECT_BINARY_DIR}/lib)
 set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)
@@ -54,6 +54,7 @@ set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)
 # Rapidjson support
 set(RAPIDJSON_INCLUDEDIR ${PROJECT_SOURCE_DIR}/external/rapidjson/include)
 Find_Package(rapidjson REQUIRED)
+include_directories(${RAPIDJSON_INCLUDEDIR})
 
 # Boost support
 FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
