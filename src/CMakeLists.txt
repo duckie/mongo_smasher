@@ -14,8 +14,8 @@ include_directories(${MANUAL_INCLUDE_DIRS})
 
 # Check dependencies
 include_directories(${PROJECT_SOURCE_DIR}/external/json_backbone/include)
-#include(CheckIncludeFileCxx)
-#check_include_file_cxx(json_backbone/container.hpp JSON_BACKBONE_FOUND)
+#include(CheckIncludeFile)
+#check_include_file(${PROJECT_SOURCE_DIR}/external/json_backbone/include/json_backbone/container.hpp JSON_BACKBONE_FOUND)
 #if (NOT JSON_BACKBONE_FOUND)
 #  message(FATAL_ERROR "The json_bacbone dependency has not been found.")
 #endif()
@@ -39,6 +39,7 @@ ExternalProject_Add(mongodb-cxx-driver
   DEPENDS libbson libmongoc
   PREFIX ${PROJECT_BINARY_DIR}
   SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver
+  PATCH_COMMAND "patch" "-p1" "${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver/examples/CMakeLists.txt" "${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver.patch" 
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR} -DCMAKE_PREFIX_PATH:PATH=${PROJECT_BINARY_DIR}
   )
 
@@ -74,7 +75,9 @@ list(REMOVE_ITEM lib_srcs "${PROJECT_SOURCE_DIR}/src/main.cc")
 
 ### Exe ###
 add_library(${PROJECT_NAME}_OBJECTS OBJECT ${lib_srcs})
+add_dependencies(${PROJECT_NAME}_OBJECTS mongodb-cxx-driver)
 add_executable(${PROJECT_NAME} main.cc $<TARGET_OBJECTS:${PROJECT_NAME}_OBJECTS>)
+add_dependencies(${PROJECT_NAME} mongodb-cxx-driver)
 
 ### Linking ###
 target_link_libraries(${PROJECT_NAME} ${LIBRARIES})
