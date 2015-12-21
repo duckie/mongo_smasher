@@ -39,7 +39,6 @@ ExternalProject_Add(mongodb-cxx-driver
   DEPENDS libbson libmongoc
   PREFIX ${PROJECT_BINARY_DIR}
   SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver
-  PATCH_COMMAND "patch" "-p1" "${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver/examples/CMakeLists.txt" "${PROJECT_SOURCE_DIR}/external/mongo-cxx-driver.patch" 
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR} -DCMAKE_PREFIX_PATH:PATH=${PROJECT_BINARY_DIR}
   )
 
