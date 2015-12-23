@@ -82,15 +82,6 @@ int main(int argc, char * argv[]) {
   mongocxx::client conn{mongocxx::uri{uri_ss.str()}};
 
 
-  //document << "hello" << "world";
-
-  //collection.insert_one(document.view());
-  //auto cursor = collection.find({});
-//
-  //for (auto&& doc : cursor) {
-    //cout << bsoncxx::to_json(doc) << endl;
-  //}
-  //
   size_t id_gen = 0u;
   map<string, vector<size_t>> existing_ids;
 
@@ -111,7 +102,7 @@ int main(int argc, char * argv[]) {
           string type = field_desc["_ms_type"];
           mongo_smasher::log(mongo_smasher::log_level::debug, "Generate field %s of type %s.\n", field_pair.first.c_str(), type.c_str());
           if (type == "random_int") {
-            document << field_pair.first << randomize.getRandomIndex(field_desc["min"].as_int(), field_desc["max"].as_int());
+            document << field_pair.first << randomize.getRandomInteger<int>(field_desc["min"].as_int(), field_desc["max"].as_int());
           }
           else if (type == "random_pick") {
             auto source = field_desc["source"];
@@ -123,7 +114,7 @@ int main(int argc, char * argv[]) {
             auto source = field_desc["source"];
             vector<string> results;
             if (source.is_string()) {
-              int nb_elem = randomize.getRandomIndex(field_desc["min"].as_uint(), field_desc["max"].as_uint());
+              int nb_elem = randomize.getRandomInteger<size_t>(field_desc["min"].as_uint(), field_desc["max"].as_uint());
               for (int index = 0; index < nb_elem; ++index)
                 results.push_back(randomize.getRandomPick(source));
             }
@@ -147,13 +138,9 @@ int main(int argc, char * argv[]) {
           }
         }
       }
-      //cout << "Doc: " << bsoncxx::to_json(document) << std::endl;
       collection.insert_one(document.view());
     }
   }
-  
-
-
 
   return 0;
 }

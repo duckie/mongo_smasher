@@ -16,32 +16,31 @@ using jv = json_backbone::container;
 
 Randomizer::Randomizer(json_backbone::container const &model) : gen_(rd_()) {
   if (model.is_vector()) {
+    list<reference_wrapper<json_backbone::container const>> remaining_values;
     for (auto const &collec_config : model.ref_vector()) {
-      list<reference_wrapper<json_backbone::container const>> remaining_values;
       remaining_values.emplace_back(collec_config["schema"]);
-      while (!remaining_values.empty()) {
-        jv const &current = remaining_values.front();
-        remaining_values.pop_front();
-        if (!current.is_map() && !current.is_vector()) {
-          log(log_level::error,
-              "Randomizer caching encountered a unexpected scalar value.\n");
-          continue;
-        }
+    }
+    while (!remaining_values.empty()) {
+      jv const &current = remaining_values.front();
+      remaining_values.pop_front();
+      if (!current.is_map() && !current.is_vector()) {
+        log(log_level::error,
+            "Randomizer caching encountered a unexpected scalar value.\n");
+        continue;
+      }
 
-        if (current.is_map()) {
-          auto ms_type_it = current.ref_map().find("_ms_type");
-          if (ms_type_it != end(current.ref_map()) &&
-              ms_type_it->second.is_string()) {
-            loadValue(current);
-          } else {
-            for (auto const &child_pair : current.ref_map()) {
-              remaining_values.emplace_back(child_pair.second);
-            }
-          }
+      if (current.is_map()) {
+        auto ms_type = current["_ms_type"];
+        if (ms_type.is_string()) {
+          loadValue(current);
         } else {
-          for (auto const &child : current.ref_vector()) {
-            remaining_values.emplace_back(child);
+          for (auto const &child_pair : current.ref_map()) {
+            remaining_values.emplace_back(child_pair.second);
           }
+        }
+      } else {
+        for (auto const &child : current.ref_vector()) {
+          remaining_values.emplace_back(child);
         }
       }
     }
@@ -101,13 +100,5 @@ string Randomizer::getRandomString(size_t min, size_t max) const {
     output << alnums.at(char_chooser_(gen_));
   return output.str();
 }
-
-int Randomizer::getRandomIndex(int min, int max) const {
-  uniform_int_distribution<int> index_chooser(min, max);
-  return index_chooser(gen_);
-}
-
-int Randomizer::getRandomInt() const { return int_chooser_(gen_); }
-size_t Randomizer::getRandomUnsigned() const { return uint_chooser_(gen_); }
 
 } // namespace mongo_smasher
