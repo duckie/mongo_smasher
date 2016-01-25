@@ -32,7 +32,6 @@ ExternalProject_Add(libmongoc
   DEPENDS libbson
   PREFIX ${PROJECT_BINARY_DIR}
   SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/libmongoc
-  PATCH_COMMAND "patch" "-p1" "${PROJECT_SOURCE_DIR}/external/libmongoc/CMakeLists.txt" "${PROJECT_SOURCE_DIR}/external/libmongoc.patch" 
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR}
   )
 ExternalProject_Add(mongodb-cxx-driver
