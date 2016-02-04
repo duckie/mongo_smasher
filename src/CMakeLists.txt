@@ -43,10 +43,10 @@ ExternalProject_Add(mongodb-cxx-driver
 
 include_directories(
   ${PROJECT_BINARY_DIR}/include
-  ${PROJECT_BINARY_DIR}/include/bsoncxx/v0.3
+  ${PROJECT_BINARY_DIR}/include/bsoncxx/v_noabi
   ${PROJECT_BINARY_DIR}/include/libbson-1.0
   ${PROJECT_BINARY_DIR}/include/libmongoc-1.0
-  ${PROJECT_BINARY_DIR}/include/mongocxx/v0.3
+  ${PROJECT_BINARY_DIR}/include/mongocxx/v_noabi
   )
 link_directories(${PROJECT_BINARY_DIR}/lib)
 set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)

@@ -30,6 +30,7 @@ int main(int argc, char * argv[]) {
     ("port,p", po::value<size_t>(&config.port)->default_value(27017), "")
     ("threads,t", po::value<size_t>(&config.threads)->default_value(1), "Number of threads")
     ("model-file", po::value<vector<string>>(), "Model file to use.")
+    ("verbosity,v", po::value<string>()->default_value("info"), "Verbosity of the output (debug,info,warning,error,fatal or quiet)")
     ;
   
   po::positional_options_description p;
@@ -56,7 +57,7 @@ int main(int argc, char * argv[]) {
     //ifstream input_stream();
     FILE* fp = fopen(config.model_file.c_str(),"r");
     if (!fp) {
-      printf("Cannot open file \"%s\" as a model.\n", config.model_file.c_str());
+      mongo_smasher::log(mongo_smasher::log_level::error, "Cannot open file \"%s\" as a model.\n", config.model_file.c_str());
       return 1;
     }
 
@@ -85,14 +86,14 @@ int main(int argc, char * argv[]) {
   size_t id_gen = 0u;
   map<string, vector<size_t>> existing_ids;
 
-  for(json_backbone::container collection_desc : data_model.ref_vector()) { 
+  for(json_backbone::container collection_desc : data_model.ref_array()) { 
     string db_name = collection_desc["db"];
     string name = collection_desc["collection"];
     auto collection = conn[db_name][name];
     size_t nb_records = collection_desc["nb_records"].as_uint();
     for (size_t index = 0; index < nb_records; ++index) {
       bsoncxx::builder::stream::document document{};
-      for (auto field_pair : collection_desc["schema"].ref_map()) {
+      for (auto field_pair : collection_desc["schema"].ref_object()) {
         if (field_pair.first == "_id") {
           document << "_id" << static_cast<int>(++id_gen);
           existing_ids["name"].push_back(id_gen);

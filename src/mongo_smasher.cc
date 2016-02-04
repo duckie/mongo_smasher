@@ -10,36 +10,40 @@
 using namespace std;
 
 namespace mongo_smasher {
+
+template <>
+typename enum_view_definition<log_level>::type
+    enum_view_definition<log_level>::str_array = {"debug", "info",  "warning",
+                                                  "error", "fatal", "quiet"};
+
 using jv = json_backbone::container;
-// MongoSmasher::MongoSmasher(json_backbone::container const& data_model) :
-// data_model_(data_model) {}
 
 Randomizer::Randomizer(json_backbone::container const &model) : gen_(rd_()) {
-  if (model.is_vector()) {
+  if (model.is_array()) {
     list<reference_wrapper<json_backbone::container const>> remaining_values;
-    for (auto const &collec_config : model.ref_vector()) {
+    for (auto const &collec_config : model.ref_array()) {
       remaining_values.emplace_back(collec_config["schema"]);
     }
     while (!remaining_values.empty()) {
       jv const &current = remaining_values.front();
       remaining_values.pop_front();
-      if (!current.is_map() && !current.is_vector()) {
+      if (!current.is_object() && !current.is_array()) {
         log(log_level::error,
             "Randomizer caching encountered a unexpected scalar value.\n");
         continue;
       }
 
-      if (current.is_map()) {
+      if (current.is_object()) {
         auto ms_type = current["_ms_type"];
         if (ms_type.is_string()) {
           loadValue(current);
         } else {
-          for (auto const &child_pair : current.ref_map()) {
+          for (auto const &child_pair : current.ref_object()) {
             remaining_values.emplace_back(child_pair.second);
           }
         }
       } else {
-        for (auto const &child : current.ref_vector()) {
+        for (auto const &child : current.ref_array()) {
           remaining_values.emplace_back(child);
         }
       }
@@ -65,14 +69,14 @@ void Randomizer::loadPick(json_backbone::container const &value) {
     ifstream file_stream(source.ref_string());
     if (file_stream) {
       string line;
-      vector<string>& collec = value_lists_[source];
+      vector<string> &collec = value_lists_[source];
       if (collec.size()) {
         log(log_level::debug, "Picking file already loaded.\n");
         return;
       }
       while (getline(file_stream, line)) {
-        if(!line.empty() && *line.rbegin() == '\r') {
-          line.erase(line.length()-1, 1);
+        if (!line.empty() && *line.rbegin() == '\r') {
+          line.erase(line.length() - 1, 1);
         }
         collec.push_back(line);
       }
@@ -90,7 +94,8 @@ string const &Randomizer::getRandomPick(string const &filename) const {
   vector<string> const &values(value_it->second);
   uniform_int_distribution<unsigned int> index_chooser(0u, values.size() - 1);
   size_t chosen_index = index_chooser(gen_);
-  log(log_level::debug, "Index chosen : %lu %lu.\n", chosen_index,values.size());
+  log(log_level::debug, "Index chosen : %lu %lu.\n", chosen_index,
+      values.size());
   return values.at(index_chooser(gen_));
 }
 
