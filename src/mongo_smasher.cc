@@ -6,6 +6,10 @@
 #include <exception>
 #include <stdexcept>
 #include <sstream>
+#include <bsoncxx/json.hpp>
+#include <bsoncxx/view_or_value.hpp>
+#include <bsoncxx/document/value.hpp>
+#include <bsoncxx/types/value.hpp>
 
 using namespace std;
 
@@ -25,37 +29,58 @@ log_level &mutable_global_log_level() {
 
 log_level global_log_level() { return mutable_global_log_level(); }
 
-Randomizer::Randomizer(json_backbone::container const &model) : gen_(rd_()) {
-  if (model.is_array()) {
-    list<reference_wrapper<json_backbone::container const>> remaining_values;
-    for (auto const &collec_config : model.ref_array()) {
-      remaining_values.emplace_back(collec_config["schema"]);
-    }
-    while (!remaining_values.empty()) {
-      jv const &current = remaining_values.front();
-      remaining_values.pop_front();
-      if (!current.is_object() && !current.is_array()) {
-        log(log_level::error,
-            "Randomizer caching encountered a unexpected scalar value.\n");
-        continue;
-      }
+Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
+  using bsoncxx::document::view;
+  using bsoncxx::document::element;
+  list<element> remaining_values;
 
-      if (current.is_object()) {
-        auto ms_type = current["_ms_type"];
-        if (ms_type.is_string()) {
-          loadValue(current);
-        } else {
-          for (auto const &child_pair : current.ref_object()) {
-            remaining_values.emplace_back(child_pair.second);
-          }
-        }
-      } else {
-        for (auto const &child : current.ref_array()) {
-          remaining_values.emplace_back(child);
-        }
-      }
-    }
+  for (auto collec_it = model.cbegin(); collec_it != model.cend(); ++collec_it)
+    remaining_values.push_back((*collec_it)["schema"]);
+
+  while (!remaining_values.empty()) {
+    auto elem = remaining_values.front();
+    remaining_values.pop_front();
+
+    if (elem.type() != bsoncxx::type::k_document && elem.type() != bsoncxx::type::k_array)
+      int i = 0;
+    
+    
   }
+  for(auto view : remaining_values) {
+    
+  }
+
+
+  //if (model.is_array()) {
+    //list<reference_wrapper<json_backbone::container const>> remaining_values;
+    //for (auto const &collec_config : model.ref_array()) {
+      //remaining_values.emplace_back(collec_config["schema"]);
+    //}
+    //while (!remaining_values.empty()) {
+      //jv const &current = remaining_values.front();
+      //remaining_values.pop_front();
+      //if (!current.is_object() && !current.is_array()) {
+        //log(log_level::error,
+            //"Randomizer caching encountered a unexpected scalar value.\n");
+        //continue;
+      //}
+//
+      //if (current.is_object()) {
+        //auto ms_type = current["_ms_type"];
+        //if (ms_type.is_string()) {
+          //loadValue(current);
+        //} else {
+          //for (auto const &child_pair : current.ref_object()) {
+            //remaining_values.emplace_back(child_pair.second);
+          //}
+        //}
+      //} else {
+        //for (auto const &child : current.ref_array()) {
+          //remaining_values.emplace_back(child);
+        //}
+      //}
+    //}
+  //}
   log(log_level::info, "Randomizer caching finished.\n");
 }
 
@@ -132,6 +157,21 @@ void run_stream(Config const &config) {
 
   log(log_level::debug, "Json file contains:\n---\n%s\n---\n",
       json_data.c_str());
+
+  auto const & model = bsoncxx::from_json(json_data);
+  log(log_level::debug, "Json data parsed successfully\n");
+  auto const& view = model.view();
+
+  // Building randomizer to cache the file contents
+  Randomizer randomizer(view);
+
+  for (auto collection_it = view.cbegin(); collection_it != view.cend(); ++collection_it) {
+    auto const & collection_view = *collection_it;
+    std::string name = collection_view["name"].get_utf8().value.to_string();
+  }
+  //for (auto elem : model) {
+  //}
 };
+
 
 } // namespace mongo_smasher

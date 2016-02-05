@@ -77,7 +77,6 @@ int main(int argc, char * argv[]) {
   }
 
   // Caching list stored into files  
-  mongo_smasher::Randomizer randomize(data_model);
   // Filling up the DBs
 
   ostringstream uri_ss;
@@ -87,6 +86,8 @@ int main(int argc, char * argv[]) {
   mongocxx::client conn{mongocxx::uri{uri_ss.str()}};
 
 
+  /*
+  mongo_smasher::Randomizer randomize(data_model);
   size_t id_gen = 0u;
   map<string, vector<size_t>> existing_ids;
 
@@ -146,6 +147,7 @@ int main(int argc, char * argv[]) {
       collection.insert_one(document.view());
     }
   }
+  */
 
   return 0;
 }

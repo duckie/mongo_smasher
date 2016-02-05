@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <limits>
 #include <algorithm>
+#include <bsoncxx/document/view.hpp>
 
 namespace mongo_smasher {
 
@@ -95,7 +96,7 @@ class Randomizer {
   void loadPick(json_backbone::container const &value);
 
 public:
-  Randomizer(json_backbone::container const &model);
+  Randomizer(bsoncxx::document::view);
   ~Randomizer() = default;
 
   std::string const &getRandomPick(std::string const &filename) const;
