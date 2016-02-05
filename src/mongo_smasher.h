@@ -8,6 +8,7 @@
 #include <json_backbone/container.hpp>
 #include <cstdio>
 #include <limits>
+#include <algorithm>
 
 namespace mongo_smasher {
 
@@ -31,7 +32,7 @@ template <class EnumType> struct enum_view {
     using namespace std;
     auto const &str_array = enum_view_definition<EnumType>::str_array;
     return static_cast<EnumType>(
-        distance(begin(str_array), find(begin(str_array), end(str_array))));
+        distance(begin(str_array), find(begin(str_array), end(str_array), value)));
   }
 
   static std::string to_string(EnumType value) {
@@ -101,6 +102,9 @@ public:
     return int_chooser(gen_);
   }
 };
+
+
+void run_stream(Config const& config);
 
 } // namespace mongo_smasher
 

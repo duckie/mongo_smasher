@@ -50,6 +50,7 @@ int main(int argc, char * argv[]) {
   }
 
   config.model_file = vm["model-file"].as<vector<string>>().front();
+  config.verbosity = ms::enum_view<ms::log_level>::from_string(vm["verbosity"].as<string>());
   json_backbone::container data_model;
 
   // Parsing model file

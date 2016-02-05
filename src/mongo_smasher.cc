@@ -106,4 +106,20 @@ string Randomizer::getRandomString(size_t min, size_t max) const {
   return output.str();
 }
 
+void run_stream(Config const& config) {
+
+  // Stage 1 - Load the file
+  std::ifstream model_file_stream(config.model_file, std::ios::in | std::ios::binary);
+  if (!model_file_stream) {
+    log(log_level::fatal, "Cannot read file \"%s\".\n", config.model_file.c_str());
+    return;
+  }
+
+  std::string json_data;
+  model_file_stream.seekg(0,std::ios::end);
+  json_data.resize(model_file_stream.tellg());
+  model_file_stream.seekg(0,std::ios::beg);
+  model_file_stream.read(&json_data.front(), json_data.size());
+};
+
 } // namespace mongo_smasher
