@@ -41,17 +41,18 @@ template <class EnumType> struct enum_view {
   }
 };
 
-enum class log_level : unsigned int {
+enum class log_level : size_t {
   debug,
   info,
   warning,
   error,
   fatal,
-  quiet
+  quiet,
+  LOG_LEVEL_MAX
 };
 
 template <> struct enum_view_size<log_level> {
-  static constexpr size_t const value = 6u;
+  static constexpr size_t const value = static_cast<size_t>(log_level::LOG_LEVEL_MAX);
 };
 
 template <typename... T>
