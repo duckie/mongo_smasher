@@ -52,6 +52,7 @@ int main(int argc, char * argv[]) {
   config.model_file = vm["model-file"].as<vector<string>>().front();
   config.verbosity = ms::enum_view<ms::log_level>::from_string(vm["verbosity"].as<string>());
   json_backbone::container data_model;
+  
 
   // Parsing model file
   {
@@ -74,7 +75,6 @@ int main(int argc, char * argv[]) {
 
   // Caching list stored into files  
   mongo_smasher::Randomizer randomize(data_model);
-  
   // Filling up the DBs
 
   ostringstream uri_ss;
