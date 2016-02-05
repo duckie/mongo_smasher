@@ -18,6 +18,13 @@ typename enum_view_definition<log_level>::type
 
 using jv = json_backbone::container;
 
+log_level &mutable_global_log_level() {
+  static log_level global_level{log_level::info};
+  return global_level;
+}
+
+log_level global_log_level() { return mutable_global_log_level(); }
+
 Randomizer::Randomizer(json_backbone::container const &model) : gen_(rd_()) {
   if (model.is_array()) {
     list<reference_wrapper<json_backbone::container const>> remaining_values;
@@ -106,20 +113,25 @@ string Randomizer::getRandomString(size_t min, size_t max) const {
   return output.str();
 }
 
-void run_stream(Config const& config) {
+void run_stream(Config const &config) {
 
   // Stage 1 - Load the file
-  std::ifstream model_file_stream(config.model_file, std::ios::in | std::ios::binary);
+  std::ifstream model_file_stream(config.model_file,
+                                  std::ios::in | std::ios::binary);
   if (!model_file_stream) {
-    log(log_level::fatal, "Cannot read file \"%s\".\n", config.model_file.c_str());
+    log(log_level::fatal, "Cannot read file \"%s\".\n",
+        config.model_file.c_str());
     return;
   }
 
   std::string json_data;
-  model_file_stream.seekg(0,std::ios::end);
+  model_file_stream.seekg(0, std::ios::end);
   json_data.resize(model_file_stream.tellg());
-  model_file_stream.seekg(0,std::ios::beg);
+  model_file_stream.seekg(0, std::ios::beg);
   model_file_stream.read(&json_data.front(), json_data.size());
+
+  log(log_level::debug, "Json file contains:\n---\n%s\n---\n",
+      json_data.c_str());
 };
 
 } // namespace mongo_smasher

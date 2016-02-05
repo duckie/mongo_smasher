@@ -55,7 +55,7 @@ template <> struct enum_view_size<log_level> {
 };
 
 template <typename... T>
-void log(log_level level, char const *format, T &&... args) {
+void raw_log(log_level level, char const *format, T &&... args) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-security"
   std::printf("[%s] ", enum_view<log_level>::to_string(level).c_str());
@@ -63,13 +63,21 @@ void log(log_level level, char const *format, T &&... args) {
 #pragma clang diagnostic pop
 }
 
+
+log_level& mutable_global_log_level();
+log_level global_log_level();
+
+template <typename... T>
+void log(log_level level, char const *format, T &&... args) {
+  if (static_cast<size_t>(global_log_level()) <= static_cast<size_t>(level))
+    raw_log(level,format,args...);
+}
+
 struct Config {
   std::string model_file;
   std::string host;
-  // std::string config_file;
   size_t port;
   size_t threads;
-  log_level verbosity;
 };
 
 class Randomizer {
