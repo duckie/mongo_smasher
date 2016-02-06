@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <limits>
 #include <algorithm>
+#include <exception>
 #include <bsoncxx/document/view.hpp>
 
 namespace mongo_smasher {
@@ -65,7 +66,6 @@ void raw_log(log_level level, char const *format, T &&... args) {
 #pragma clang diagnostic pop
 }
 
-
 log_level& mutable_global_log_level();
 log_level global_log_level();
 
@@ -74,6 +74,9 @@ void log(log_level level, char const *format, T &&... args) {
   if (static_cast<size_t>(global_log_level()) <= static_cast<size_t>(level))
     raw_log(level,format,args...);
 }
+
+struct exception : public std::exception {
+};
 
 struct Config {
   std::string model_file;

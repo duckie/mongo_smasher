@@ -19,7 +19,6 @@ template <>
 typename enum_view_definition<log_level>::type
     enum_view_definition<log_level>::str_array = {"debug", "info",  "warning",
                                                   "error", "fatal", "quiet"};
-
 using jv = json_backbone::container;
 
 log_level &mutable_global_log_level() {
@@ -30,8 +29,20 @@ log_level &mutable_global_log_level() {
 log_level global_log_level() { return mutable_global_log_level(); }
 
 Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
-  using bsoncxx::document::view;
-  using bsoncxx::document::element;
+  namespace bsx = bsoncxx;
+  using bsx::document::view;
+  using bsx::document::element;
+
+  auto values = model["values"];
+  
+  if (values.type() != bsx::type::k_array) {
+    log(log_level::fatal, "The \"values\" must be an array of objects.");
+    throw exception();
+  }
+
+  return;
+  
+
   list<element> remaining_values;
 
   for (auto collec_it = model.cbegin(); collec_it != model.cend(); ++collec_it)
@@ -41,9 +52,15 @@ Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
     auto elem = remaining_values.front();
     remaining_values.pop_front();
 
-    if (elem.type() != bsoncxx::type::k_document && elem.type() != bsoncxx::type::k_array)
-      int i = 0;
+    if (elem.type() != bsx::type::k_document && elem.type() != bsx::type::k_array) {
+      log(log_level::error,
+          "Randomizer caching encountered a unexpected scalar value.\n");
+      continue;
+    }
     
+    if (elem.type() == bsx::type::k_document) {
+
+    }
     
   }
   for(auto view : remaining_values) {
@@ -165,10 +182,10 @@ void run_stream(Config const &config) {
   // Building randomizer to cache the file contents
   Randomizer randomizer(view);
 
-  for (auto collection_it = view.cbegin(); collection_it != view.cend(); ++collection_it) {
-    auto const & collection_view = *collection_it;
-    std::string name = collection_view["name"].get_utf8().value.to_string();
-  }
+  //for (auto collection_it = view.cbegin(); collection_it != view.cend(); ++collection_it) {
+    //auto const & collection_view = *collection_it;
+    //std::string name = collection_view["name"].get_utf8().value.to_string();
+  //}
   //for (auto elem : model) {
   //}
 };
