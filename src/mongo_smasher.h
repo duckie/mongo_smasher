@@ -13,6 +13,7 @@
 #include <bsoncxx/document/view.hpp>
 
 namespace mongo_smasher {
+using str_view = bsoncxx::stdx::string_view;
 
 // Snippet used to simplify the enum <-> string relationship without macros
 
@@ -93,7 +94,8 @@ class Randomizer {
   mutable std::uniform_int_distribution<unsigned int> char_chooser_ =
       std::uniform_int_distribution<unsigned int>(0u, alnums_size - 1u);
 
-  std::map<std::string, std::vector<std::string>> value_lists_;
+  std::map<str_view, std::vector<str_view>> value_lists_;
+  std::map<str_view, std::function<bsoncxx::document::element()>> generators_;
 
   void loadValue(json_backbone::container const &value);
   void loadPick(json_backbone::container const &value);

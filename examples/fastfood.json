@@ -1,9 +1,9 @@
 {
   "values":[
-    {"name":"lastname","method":"filepick","file":"dictionaries/names.txt"},
-    {"name":"firstname","method":"filepick","file":"dictionaries/first-names.txt"},
-    {"name":"middlename","method":"filepick","file":"dictionaries/middle-names.txt"},
-    {"name":"age","method":"intrangepick","start":18,"end":70}
+    {"name":"lastname","type":"filepick","file":"dictionaries/names.txt"},
+    {"name":"firstname","type":"filepick","file":"dictionaries/first-names.txt"},
+    {"name":"middlename","type":"filepick","file":"dictionaries/middle-names.txt"},
+    {"name":"age","type":"intrangepick","start":18,"end":70}
   ],
   "collections":[
     {

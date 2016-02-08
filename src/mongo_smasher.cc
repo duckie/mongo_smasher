@@ -13,7 +13,17 @@
 
 using namespace std;
 
+namespace  mongo_smasher {
+namespace {
+inline str_view to_str_view(bsoncxx::document::element elem) {
+  return elem.get_utf8().value;
+}
+}
+}
+
 namespace mongo_smasher {
+
+str_view ole();
 
 template <>
 typename enum_view_definition<log_level>::type
@@ -32,16 +42,31 @@ Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
   namespace bsx = bsoncxx;
   using bsx::document::view;
   using bsx::document::element;
+  using bsx::stdx::string_view;
 
   auto values = model["values"];
-  
+
   if (values.type() != bsx::type::k_array) {
     log(log_level::fatal, "The \"values\" must be an array of objects.");
     throw exception();
   }
 
+  for (auto value : values.get_array().value) {
+    auto type = to_str_view(value["type"]);
+    if (type == str_view("filepick")) {
+      // Cache the file if not already done
+      auto filename = to_str_view(value["file"]);
+      
+      //value.
+      auto value_list_it = value_lists_.find(filename);
+      if (end(value_lists_) == value_list_it) {
+        
+      }
+      // log(log_level::debug,"Regisering a filepick value.\n");
+    }
+  }
+
   return;
-  
 
   list<element> remaining_values;
 
@@ -52,51 +77,48 @@ Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
     auto elem = remaining_values.front();
     remaining_values.pop_front();
 
-    if (elem.type() != bsx::type::k_document && elem.type() != bsx::type::k_array) {
+    if (elem.type() != bsx::type::k_document &&
+        elem.type() != bsx::type::k_array) {
       log(log_level::error,
           "Randomizer caching encountered a unexpected scalar value.\n");
       continue;
     }
-    
+
     if (elem.type() == bsx::type::k_document) {
-
     }
-    
   }
-  for(auto view : remaining_values) {
-    
+  for (auto view : remaining_values) {
   }
 
-
-  //if (model.is_array()) {
-    //list<reference_wrapper<json_backbone::container const>> remaining_values;
-    //for (auto const &collec_config : model.ref_array()) {
-      //remaining_values.emplace_back(collec_config["schema"]);
-    //}
-    //while (!remaining_values.empty()) {
-      //jv const &current = remaining_values.front();
-      //remaining_values.pop_front();
-      //if (!current.is_object() && !current.is_array()) {
-        //log(log_level::error,
-            //"Randomizer caching encountered a unexpected scalar value.\n");
-        //continue;
-      //}
-//
-      //if (current.is_object()) {
-        //auto ms_type = current["_ms_type"];
-        //if (ms_type.is_string()) {
-          //loadValue(current);
-        //} else {
-          //for (auto const &child_pair : current.ref_object()) {
-            //remaining_values.emplace_back(child_pair.second);
-          //}
-        //}
-      //} else {
-        //for (auto const &child : current.ref_array()) {
-          //remaining_values.emplace_back(child);
-        //}
-      //}
-    //}
+  // if (model.is_array()) {
+  // list<reference_wrapper<json_backbone::container const>> remaining_values;
+  // for (auto const &collec_config : model.ref_array()) {
+  // remaining_values.emplace_back(collec_config["schema"]);
+  //}
+  // while (!remaining_values.empty()) {
+  // jv const &current = remaining_values.front();
+  // remaining_values.pop_front();
+  // if (!current.is_object() && !current.is_array()) {
+  // log(log_level::error,
+  //"Randomizer caching encountered a unexpected scalar value.\n");
+  // continue;
+  //}
+  //
+  // if (current.is_object()) {
+  // auto ms_type = current["_ms_type"];
+  // if (ms_type.is_string()) {
+  // loadValue(current);
+  //} else {
+  // for (auto const &child_pair : current.ref_object()) {
+  // remaining_values.emplace_back(child_pair.second);
+  //}
+  //}
+  //} else {
+  // for (auto const &child : current.ref_array()) {
+  // remaining_values.emplace_back(child);
+  //}
+  //}
+  //}
   //}
   log(log_level::info, "Randomizer caching finished.\n");
 }
@@ -136,16 +158,16 @@ void Randomizer::loadPick(json_backbone::container const &value) {
 }
 
 string const &Randomizer::getRandomPick(string const &filename) const {
-  auto value_it = value_lists_.find(filename);
-  if (end(value_lists_) == value_it)
-    throw runtime_error("Pickable collection does not exist.");
-
-  vector<string> const &values(value_it->second);
-  uniform_int_distribution<unsigned int> index_chooser(0u, values.size() - 1);
-  size_t chosen_index = index_chooser(gen_);
-  log(log_level::debug, "Index chosen : %lu %lu.\n", chosen_index,
-      values.size());
-  return values.at(index_chooser(gen_));
+  //auto value_it = value_lists_.find(filename);
+  //if (end(value_lists_) == value_it)
+    //throw runtime_error("Pickable collection does not exist.");
+//
+  //vector<string> const &values(value_it->second);
+  //uniform_int_distribution<unsigned int> index_chooser(0u, values.size() - 1);
+  //size_t chosen_index = index_chooser(gen_);
+  //log(log_level::debug, "Index chosen : %lu %lu.\n", chosen_index,
+      //values.size());
+  //return values.at(index_chooser(gen_));
 }
 
 string Randomizer::getRandomString(size_t min, size_t max) const {
@@ -175,20 +197,20 @@ void run_stream(Config const &config) {
   log(log_level::debug, "Json file contains:\n---\n%s\n---\n",
       json_data.c_str());
 
-  auto const & model = bsoncxx::from_json(json_data);
+  auto const &model = bsoncxx::from_json(json_data);
   log(log_level::debug, "Json data parsed successfully\n");
-  auto const& view = model.view();
+  auto const &view = model.view();
 
   // Building randomizer to cache the file contents
   Randomizer randomizer(view);
 
-  //for (auto collection_it = view.cbegin(); collection_it != view.cend(); ++collection_it) {
-    //auto const & collection_view = *collection_it;
-    //std::string name = collection_view["name"].get_utf8().value.to_string();
+  // for (auto collection_it = view.cbegin(); collection_it != view.cend();
+  // ++collection_it) {
+  // auto const & collection_view = *collection_it;
+  // std::string name = collection_view["name"].get_utf8().value.to_string();
   //}
-  //for (auto elem : model) {
+  // for (auto elem : model) {
   //}
 };
-
 
 } // namespace mongo_smasher
