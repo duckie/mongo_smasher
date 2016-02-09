@@ -53,16 +53,36 @@ Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
 
   for (auto value : values.get_array().value) {
     auto type = to_str_view(value["type"]);
+    auto name = to_str_view(value["name"]);
+    if (name.empty() || type.empty()) {
+      log(log_level::warning, "Neither name or type of a generator can be empty.\n");
+      continue;
+    }
+
     if (type == str_view("filepick")) {
       // Cache the file if not already done
       auto filename = to_str_view(value["file"]);
-      
-      //value.
       auto value_list_it = value_lists_.find(filename);
       if (end(value_lists_) == value_list_it) {
+        std::ifstream file_in(filename.data());
+        if (!file_in) {
+          log(log_level::fatal, "Cannot open file \"%s\".\n", filename.data());
+          throw exception();
+        }
         
+        std::string line;
+        auto& new_vector = value_lists_[filename];
+        while(std::getline(file_in, line))
+          new_vector.emplace_back(line.c_str());
       }
-      // log(log_level::debug,"Regisering a filepick value.\n");
+
+      // Register the type
+      auto const& possible_values = value_lists_[filename];
+      generators_.insert({name, [this, &possible_values]() -> bsx::document::element {
+          static std::uniform_int_distribution<size_t> chooser(0u, possible_values.size()-1);
+          
+          return possible_values[chooser(this->gen_)];
+      }});
     }
   }
 
@@ -132,29 +152,29 @@ void Randomizer::loadValue(json_backbone::container const &value) {
 }
 
 void Randomizer::loadPick(json_backbone::container const &value) {
-  jv data = value; // Copy to make access easier on non existing keys
-  jv source = value["source"];
-  if (source.is_string()) {
-    log(log_level::info, "Loading random picking file %s.\n",
-        source.ref_string().c_str());
-    ifstream file_stream(source.ref_string());
-    if (file_stream) {
-      string line;
-      vector<string> &collec = value_lists_[source];
-      if (collec.size()) {
-        log(log_level::debug, "Picking file already loaded.\n");
-        return;
-      }
-      while (getline(file_stream, line)) {
-        if (!line.empty() && *line.rbegin() == '\r') {
-          line.erase(line.length() - 1, 1);
-        }
-        collec.push_back(line);
-      }
-
-      log(log_level::info, "%lu elements loaded.\n", collec.size());
-    }
-  }
+  //jv data = value; // Copy to make access easier on non existing keys
+  //jv source = value["source"];
+  //if (source.is_string()) {
+    //log(log_level::info, "Loading random picking file %s.\n",
+        //source.ref_string().c_str());
+    //ifstream file_stream(source.ref_string());
+    //if (file_stream) {
+      //string line;
+      //vector<string> &collec = value_lists_[source];
+      //if (collec.size()) {
+        //log(log_level::debug, "Picking file already loaded.\n");
+        //return;
+      //}
+      //while (getline(file_stream, line)) {
+        //if (!line.empty() && *line.rbegin() == '\r') {
+          //line.erase(line.length() - 1, 1);
+        //}
+        //collec.push_back(line);
+      //}
+//
+      //log(log_level::info, "%lu elements loaded.\n", collec.size());
+    //}
+  //}
 }
 
 string const &Randomizer::getRandomPick(string const &filename) const {
@@ -168,6 +188,8 @@ string const &Randomizer::getRandomPick(string const &filename) const {
   //log(log_level::debug, "Index chosen : %lu %lu.\n", chosen_index,
       //values.size());
   //return values.at(index_chooser(gen_));
+  static std::string roger;
+  return roger;
 }
 
 string Randomizer::getRandomString(size_t min, size_t max) const {
