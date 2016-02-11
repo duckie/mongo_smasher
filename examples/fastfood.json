@@ -3,7 +3,8 @@
     {"name":"lastname","type":"filepick","file":"dictionaries/names.txt"},
     {"name":"firstname","type":"filepick","file":"dictionaries/first-names.txt"},
     {"name":"middlename","type":"filepick","file":"dictionaries/middle-names.txt"},
-    {"name":"age","type":"intrangepick","start":18,"end":70}
+    {"name":"reference_1","type":"string","min_size":10,"max_size":10},
+    {"name":"age","type":"int","min":18,"max":120}
   ],
   "collections":[
     {

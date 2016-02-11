@@ -13,17 +13,82 @@
 
 using namespace std;
 
-namespace  mongo_smasher {
+namespace mongo_smasher {
 namespace {
 inline str_view to_str_view(bsoncxx::document::element elem) {
   return elem.get_utf8().value;
 }
+
+// Select a value in a vector
+template <class Generator> class ValuePickPusher : public ValuePusher {
+  Generator &gen_;
+  std::uniform_int_distribution<size_t> distrib_;
+  std::vector<str_view> const &values_;
+
+public:
+  ValuePickPusher(Generator &gen, std::vector<str_view> const &values)
+      : gen_(gen), distrib_(0, values.size() - 1), values_(values) {}
+
+  void push(bsoncxx::builder::stream::single_context ctx) override {
+    ctx << values_[distrib_(gen_)];
+  }
+  void push(bsoncxx::builder::stream::array_context<> ctx) override {
+    ctx << values_[distrib_(gen_)];
+  }
+};
+
+struct StringPusherData {
+  static str_view const alnums;
+};
+str_view const StringPusherData::alnums = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+template <class Generator> class StringPusher : public ValuePusher, private StringPusherData {
+  Generator &gen_;
+  std::uniform_int_distribution<size_t> distrib_;
+  // The char_chooser is kept here because it cannot stay const
+  std::uniform_int_distribution<size_t> char_chooser_ {0u, StringPusherData::alnums.size() - 1u };
+
+public:
+  StringPusher(Generator &gen, size_t min_size, size_t max_size)
+      : gen_(gen), distrib_(min_size,max_size) {}
+
+  void push(bsoncxx::builder::stream::single_context ctx) override {
+    ostringstream value_stream;
+    size_t size = distrib_(gen_);
+    for (size_t index = 0u; index < size; ++index)
+      value_stream << alnums[char_chooser_(gen_)];
+    ctx << value_stream.str();
+  }
+
+  void push(bsoncxx::builder::stream::array_context<> ctx) override {
+    ostringstream value_stream;
+    size_t size = distrib_(gen_);
+    for (size_t index = 0u; index < size; ++index)
+      value_stream << alnums[char_chooser_(gen_)];
+    ctx << value_stream.str();
+  }
+};
+
+template <class Generator> class IntPusher : public ValuePusher {
+  Generator &gen_;
+  std::uniform_int_distribution<int> distrib_;
+
+public:
+  IntPusher(Generator &gen, int min, int max)
+      : gen_(gen), distrib_(min,max) {}
+
+  void push(bsoncxx::builder::stream::single_context ctx) override {
+    ctx << distrib_(gen_);
+  }
+
+  void push(bsoncxx::builder::stream::array_context<> ctx) override {
+    ctx << distrib_(gen_);
+  }
+};
 }
 }
 
 namespace mongo_smasher {
-
-str_view ole();
 
 template <>
 typename enum_view_definition<log_level>::type
@@ -55,11 +120,22 @@ Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
     auto type = to_str_view(value["type"]);
     auto name = to_str_view(value["name"]);
     if (name.empty() || type.empty()) {
-      log(log_level::warning, "Neither name or type of a generator can be empty.\n");
+      log(log_level::warning,
+          "Neither name or type of a generator can be empty.\n");
       continue;
     }
 
-    if (type == str_view("filepick")) {
+    if (type == str_view("string")) {
+      int min = value["min_size"].get_int32();
+      int max = value["max_size"].get_int32();
+      generators_.emplace(name, make_unique<StringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min), static_cast<size_t>(max)));
+    }
+    else if (type == str_view("string")) {
+      int min = value["min"].get_int32();
+      int max = value["max"].get_int32();
+      generators_.emplace(name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max));
+    }
+    else if (type == str_view("filepick")) {
       // Cache the file if not already done
       auto filename = to_str_view(value["file"]);
       auto value_list_it = value_lists_.find(filename);
@@ -69,128 +145,26 @@ Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
           log(log_level::fatal, "Cannot open file \"%s\".\n", filename.data());
           throw exception();
         }
-        
+
         std::string line;
-        auto& new_vector = value_lists_[filename];
-        while(std::getline(file_in, line))
+        auto &new_vector = value_lists_[filename];
+        while (std::getline(file_in, line))
           new_vector.emplace_back(line.c_str());
       }
 
       // Register the type
-      auto const& possible_values = value_lists_[filename];
-      generators_.insert({name, [this, &possible_values]() -> bsx::document::element {
-          static std::uniform_int_distribution<size_t> chooser(0u, possible_values.size()-1);
-          
-          return possible_values[chooser(this->gen_)];
-      }});
+      auto const &possible_values = value_lists_[filename];
+      generators_.emplace(name, make_unique<ValuePickPusher<decltype(gen_)>>(gen_, possible_values));
+    }
+    else {
+      log(log_level::error, "Unknown value type \"%s\".\n", type.data());
     }
   }
 
-  return;
-
-  list<element> remaining_values;
-
-  for (auto collec_it = model.cbegin(); collec_it != model.cend(); ++collec_it)
-    remaining_values.push_back((*collec_it)["schema"]);
-
-  while (!remaining_values.empty()) {
-    auto elem = remaining_values.front();
-    remaining_values.pop_front();
-
-    if (elem.type() != bsx::type::k_document &&
-        elem.type() != bsx::type::k_array) {
-      log(log_level::error,
-          "Randomizer caching encountered a unexpected scalar value.\n");
-      continue;
-    }
-
-    if (elem.type() == bsx::type::k_document) {
-    }
-  }
-  for (auto view : remaining_values) {
-  }
-
-  // if (model.is_array()) {
-  // list<reference_wrapper<json_backbone::container const>> remaining_values;
-  // for (auto const &collec_config : model.ref_array()) {
-  // remaining_values.emplace_back(collec_config["schema"]);
-  //}
-  // while (!remaining_values.empty()) {
-  // jv const &current = remaining_values.front();
-  // remaining_values.pop_front();
-  // if (!current.is_object() && !current.is_array()) {
-  // log(log_level::error,
-  //"Randomizer caching encountered a unexpected scalar value.\n");
-  // continue;
-  //}
-  //
-  // if (current.is_object()) {
-  // auto ms_type = current["_ms_type"];
-  // if (ms_type.is_string()) {
-  // loadValue(current);
-  //} else {
-  // for (auto const &child_pair : current.ref_object()) {
-  // remaining_values.emplace_back(child_pair.second);
-  //}
-  //}
-  //} else {
-  // for (auto const &child : current.ref_array()) {
-  // remaining_values.emplace_back(child);
-  //}
-  //}
-  //}
-  //}
   log(log_level::info, "Randomizer caching finished.\n");
+  return;
 }
 
-void Randomizer::loadValue(json_backbone::container const &value) {
-  string type = value["_ms_type"];
-  log(log_level::debug, "Randomizer caching a \"%s\" element.\n", type.c_str());
-  if (type == "random_pick" || type == "random_multipick") {
-    loadPick(value);
-  }
-}
-
-void Randomizer::loadPick(json_backbone::container const &value) {
-  //jv data = value; // Copy to make access easier on non existing keys
-  //jv source = value["source"];
-  //if (source.is_string()) {
-    //log(log_level::info, "Loading random picking file %s.\n",
-        //source.ref_string().c_str());
-    //ifstream file_stream(source.ref_string());
-    //if (file_stream) {
-      //string line;
-      //vector<string> &collec = value_lists_[source];
-      //if (collec.size()) {
-        //log(log_level::debug, "Picking file already loaded.\n");
-        //return;
-      //}
-      //while (getline(file_stream, line)) {
-        //if (!line.empty() && *line.rbegin() == '\r') {
-          //line.erase(line.length() - 1, 1);
-        //}
-        //collec.push_back(line);
-      //}
-//
-      //log(log_level::info, "%lu elements loaded.\n", collec.size());
-    //}
-  //}
-}
-
-string const &Randomizer::getRandomPick(string const &filename) const {
-  //auto value_it = value_lists_.find(filename);
-  //if (end(value_lists_) == value_it)
-    //throw runtime_error("Pickable collection does not exist.");
-//
-  //vector<string> const &values(value_it->second);
-  //uniform_int_distribution<unsigned int> index_chooser(0u, values.size() - 1);
-  //size_t chosen_index = index_chooser(gen_);
-  //log(log_level::debug, "Index chosen : %lu %lu.\n", chosen_index,
-      //values.size());
-  //return values.at(index_chooser(gen_));
-  static std::string roger;
-  return roger;
-}
 
 string Randomizer::getRandomString(size_t min, size_t max) const {
   ostringstream output;

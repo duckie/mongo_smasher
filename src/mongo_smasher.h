@@ -10,10 +10,15 @@
 #include <limits>
 #include <algorithm>
 #include <exception>
+#include <bsoncxx/stdx/make_unique.hpp>
 #include <bsoncxx/document/view.hpp>
+#include <bsoncxx/builder/stream/document.hpp>
+#include <bsoncxx/builder/stream/array.hpp>
+#include <bsoncxx/builder/stream/helpers.hpp>
 
 namespace mongo_smasher {
 using str_view = bsoncxx::stdx::string_view;
+using bsoncxx::stdx::make_unique;
 
 // Snippet used to simplify the enum <-> string relationship without macros
 
@@ -86,6 +91,13 @@ struct Config {
   size_t threads;
 };
 
+struct ValuePusher {
+  virtual ~ValuePusher() {};
+  virtual void push(bsoncxx::builder::stream::single_context ctx) = 0;
+  virtual void push(bsoncxx::builder::stream::array_context<> ctx) = 0;
+  //virtual void push(bsoncxx::builder::stream::key_context<> ctx) = 0;
+};
+
 class Randomizer {
   std::string const alnums = "abcdefghijklmnopqrstuvwxyz0123456789";
   size_t const alnums_size = 36u;
@@ -95,16 +107,12 @@ class Randomizer {
       std::uniform_int_distribution<unsigned int>(0u, alnums_size - 1u);
 
   std::map<str_view, std::vector<str_view>> value_lists_;
-  std::map<str_view, std::function<bsoncxx::document::element()>> generators_;
-
-  void loadValue(json_backbone::container const &value);
-  void loadPick(json_backbone::container const &value);
+  std::map<str_view, std::unique_ptr<ValuePusher>> generators_;
 
 public:
   Randomizer(bsoncxx::document::view);
   ~Randomizer() = default;
 
-  std::string const &getRandomPick(std::string const &filename) const;
   std::string getRandomString(size_t min, size_t max) const;
   template <class T> T const &getRandomPick(std::vector<T> const &values) const;
   template <class T>
