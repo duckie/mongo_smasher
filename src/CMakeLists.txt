@@ -51,11 +51,6 @@ include_directories(
 link_directories(${PROJECT_BINARY_DIR}/lib)
 set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)
 
-# Rapidjson support
-set(RAPIDJSON_INCLUDEDIR ${PROJECT_SOURCE_DIR}/external/rapidjson/include)
-Find_Package(rapidjson REQUIRED)
-include_directories(${RAPIDJSON_INCLUDEDIR})
-
 # Boost support
 FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
 if(Boost_FOUND)
