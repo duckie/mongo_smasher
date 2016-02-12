@@ -4,9 +4,6 @@
 #include <sstream>
 #include <cstdio>
 #include <cstdlib>
-#include <rapidjson/reader.h> 
-#include <rapidjson/filereadstream.h> 
-#include <json_backbone/extensions/rapidjson/rapidjson.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/helpers.hpp>
@@ -56,25 +53,7 @@ int main(int argc, char * argv[]) {
   ms::run_stream(config); 
 
   return 0;
-  json_backbone::container data_model;
-  // Parsing model file
-  {
-    //ifstream input_stream();
-    FILE* fp = fopen(config.model_file.c_str(),"r");
-    if (!fp) {
-      mongo_smasher::log(mongo_smasher::log_level::error, "Cannot open file \"%s\" as a model.\n", config.model_file.c_str());
-      return 1;
-    }
 
-    auto handler = json_backbone::extensions::rapidjson::make_reader_handler(data_model);
-    char readBuffer[256];
-    rapidjson::FileReadStream bis(fp, readBuffer, sizeof(readBuffer));
-    rapidjson::Reader reader;
-    //rapidjson::StringStream ss(input_stream.c_str());
-    if(!reader.Parse(bis, handler)) {
-      cout << "Failed \n";
-    }
-  }
 
   // Caching list stored into files  
   // Filling up the DBs

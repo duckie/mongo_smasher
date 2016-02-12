@@ -94,7 +94,6 @@ template <>
 typename enum_view_definition<log_level>::type
     enum_view_definition<log_level>::str_array = {"debug", "info",  "warning",
                                                   "error", "fatal", "quiet"};
-using jv = json_backbone::container;
 
 log_level &mutable_global_log_level() {
   static log_level global_level{log_level::info};
@@ -193,7 +192,10 @@ void run_stream(Config const &config) {
   log(log_level::debug, "Json file contains:\n---\n%s\n---\n",
       json_data.c_str());
 
-  auto const &model = bsoncxx::from_json(json_data);
+  // This parsed model must be kept alive til the end of run_stream
+  // because objects use string_views pointing inside it 
+  // TODO: enforce it one way or another
+  auto const model = bsoncxx::from_json(json_data);
   log(log_level::debug, "Json data parsed successfully\n");
   auto const &view = model.view();
 
