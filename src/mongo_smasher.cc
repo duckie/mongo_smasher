@@ -27,8 +27,8 @@ template <class String> String dirname(String const& filename) {
   auto last_backslash = filename.find_last_of('\\');
   if (last_slash == std::string::npos && last_backslash == std::string::npos)
     return {};
-  auto pos = std::max(last_slash, last_backslash);
-  return filename.substr(0,pos-1);
+  auto pos = std::max<int>(last_slash, last_backslash);  // std::max does not resolve to signed properly
+  return filename.substr(0,pos+1);
 }
 
 
@@ -138,6 +138,8 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_
       auto filename = to_str_view(value["file"]);
       auto value_list_it = value_lists_.find(filename);
       if (end(value_lists_) == value_list_it) {
+        
+
         std::ifstream file_in(filename.data());
         if (!file_in) {
           log(log_level::fatal, "Cannot open file \"%s\".\n", filename.data());
