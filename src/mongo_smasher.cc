@@ -13,6 +13,7 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
 #include <boost/filesystem/path.hpp>
+#include <cppformat/format.h>
 
 using namespace std;
 
@@ -198,11 +199,11 @@ void run_stream(Config const &config) {
   Randomizer randomizer(view, root_path.data());
 
   // Connect to data base
-  ostringstream uri_ss;
-  uri_ss << "mongodb://" << config.host << ":" << config.port;
-  mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", uri_ss.str().c_str());
+  // TODO: Manage exceptions
+  std::string db_uri = fmt::format("mongodb://{}:{}", config.host, config.port);
+  mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", db_uri.c_str());
   mongocxx::instance inst{};
-  mongocxx::client conn{mongocxx::uri{uri_ss.str()}};
+  mongocxx::client conn{mongocxx::uri{db_uri}};
 
 
   // for (auto collection_it = view.cbegin(); collection_it != view.cend();

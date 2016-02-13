@@ -23,7 +23,7 @@ include_directories(${PROJECT_SOURCE_DIR}/external/json_backbone/include)
 Find_Package(Threads REQUIRED)
 
 # MongoDB driver
-ExternalProject_Add(cppformat
+ExternalProject_Add(libcppformat
   PREFIX ${PROJECT_BINARY_DIR}
   SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/cppformat
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR}
@@ -54,7 +54,7 @@ include_directories(
   ${PROJECT_BINARY_DIR}/include/mongocxx/v_noabi
   )
 link_directories(${PROJECT_BINARY_DIR}/lib)
-set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)
+set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx cppformat)
 
 # Boost support
 FIND_PACKAGE(Boost COMPONENTS program_options filesystem system REQUIRED)
@@ -75,7 +75,7 @@ list(REMOVE_ITEM lib_srcs "${PROJECT_SOURCE_DIR}/src/main.cc")
 add_library(${PROJECT_NAME}_OBJECTS OBJECT ${lib_srcs})
 add_dependencies(${PROJECT_NAME}_OBJECTS mongodb-cxx-driver)
 add_executable(${PROJECT_NAME} main.cc $<TARGET_OBJECTS:${PROJECT_NAME}_OBJECTS>)
-add_dependencies(${PROJECT_NAME} mongodb-cxx-driver cppformat)
+add_dependencies(${PROJECT_NAME} mongodb-cxx-driver libcppformat)
 
 ### Linking ###
 target_link_libraries(${PROJECT_NAME} ${LIBRARIES})
