@@ -23,6 +23,11 @@ include_directories(${PROJECT_SOURCE_DIR}/external/json_backbone/include)
 Find_Package(Threads REQUIRED)
 
 # MongoDB driver
+ExternalProject_Add(cppformat
+  PREFIX ${PROJECT_BINARY_DIR}
+  SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/cppformat
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR}
+  )
 ExternalProject_Add(libbson
   PREFIX ${PROJECT_BINARY_DIR}
   SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/libbson
@@ -52,7 +57,7 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx)
 
 # Boost support
-FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS program_options filesystem system REQUIRED)
 if(Boost_FOUND)
 include_directories(${Boost_INCLUDE_DIRS})
 if(NOT MSVC)
@@ -70,7 +75,7 @@ list(REMOVE_ITEM lib_srcs "${PROJECT_SOURCE_DIR}/src/main.cc")
 add_library(${PROJECT_NAME}_OBJECTS OBJECT ${lib_srcs})
 add_dependencies(${PROJECT_NAME}_OBJECTS mongodb-cxx-driver)
 add_executable(${PROJECT_NAME} main.cc $<TARGET_OBJECTS:${PROJECT_NAME}_OBJECTS>)
-add_dependencies(${PROJECT_NAME} mongodb-cxx-driver)
+add_dependencies(${PROJECT_NAME} mongodb-cxx-driver cppformat)
 
 ### Linking ###
 target_link_libraries(${PROJECT_NAME} ${LIBRARIES})

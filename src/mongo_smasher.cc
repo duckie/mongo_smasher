@@ -12,6 +12,7 @@
 #include <bsoncxx/types/value.hpp>
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
+#include <boost/filesystem/path.hpp>
 
 using namespace std;
 
@@ -20,17 +21,6 @@ namespace {
 inline str_view to_str_view(bsoncxx::document::element elem) {
   return elem.get_utf8().value;
 }
-
-// Can be used with either std::string or str_view
-template <class String> String dirname(String const& filename) {
-  auto last_slash = filename.find_last_of('/');
-  auto last_backslash = filename.find_last_of('\\');
-  if (last_slash == std::string::npos && last_backslash == std::string::npos)
-    return {};
-  auto pos = std::max(last_slash, last_backslash);
-  return filename.substr(0,pos-1);
-}
-
 
 // Select a value in a vector
 template <class Generator> class ValuePickPusher : public ValuePusher {
@@ -182,7 +172,7 @@ void run_stream(Config const &config) {
     return;
   }
 
-  std::string root_path = dirname(config.model_file);
+  std::string root_path = boost::filesystem::path(config.model_file).parent_path().string();
   log(log_level::info, "Path to search dictionaries is \"%s\"\n", root_path.c_str());
 
   std::string json_data;
