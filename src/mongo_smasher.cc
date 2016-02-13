@@ -21,6 +21,17 @@ inline str_view to_str_view(bsoncxx::document::element elem) {
   return elem.get_utf8().value;
 }
 
+// Can be used with either std::string or str_view
+template <class String> String dirname(String const& filename) {
+  auto last_slash = filename.find_last_of('/');
+  auto last_backslash = filename.find_last_of('\\');
+  if (last_slash == std::string::npos && last_backslash == std::string::npos)
+    return {};
+  auto pos = std::max(last_slash, last_backslash);
+  return filename.substr(0,pos-1);
+}
+
+
 // Select a value in a vector
 template <class Generator> class ValuePickPusher : public ValuePusher {
   Generator &gen_;
@@ -32,9 +43,6 @@ public:
       : gen_(gen), distrib_(0, values.size() - 1), values_(values) {}
 
   void push(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << values_[distrib_(gen_)];
-  }
-  void push(bsoncxx::builder::stream::array_context<> ctx) override {
     ctx << values_[distrib_(gen_)];
   }
 };
@@ -62,13 +70,6 @@ public:
     ctx << value_stream.str();
   }
 
-  void push(bsoncxx::builder::stream::array_context<> ctx) override {
-    ostringstream value_stream;
-    size_t size = distrib_(gen_);
-    for (size_t index = 0u; index < size; ++index)
-      value_stream << alnums[char_chooser_(gen_)];
-    ctx << value_stream.str();
-  }
 };
 
 template <class Generator> class IntPusher : public ValuePusher {
@@ -80,10 +81,6 @@ public:
       : gen_(gen), distrib_(min,max) {}
 
   void push(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << distrib_(gen_);
-  }
-
-  void push(bsoncxx::builder::stream::array_context<> ctx) override {
     ctx << distrib_(gen_);
   }
 };
@@ -104,7 +101,7 @@ log_level &mutable_global_log_level() {
 
 log_level global_log_level() { return mutable_global_log_level(); }
 
-Randomizer::Randomizer(bsoncxx::document::view model) : gen_(rd_()) {
+Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_(rd_()) {
   namespace bsx = bsoncxx;
   using bsx::document::view;
   using bsx::document::element;
@@ -185,6 +182,9 @@ void run_stream(Config const &config) {
     return;
   }
 
+  std::string root_path = dirname(config.model_file);
+  log(log_level::info, "Path to search dictionaries is \"%s\"\n", root_path.c_str());
+
   std::string json_data;
   model_file_stream.seekg(0, std::ios::end);
   json_data.resize(model_file_stream.tellg());
@@ -202,7 +202,7 @@ void run_stream(Config const &config) {
   auto const &view = model.view();
 
   // Building randomizer to cache the file contents
-  Randomizer randomizer(view);
+  Randomizer randomizer(view, root_path.data());
 
   // Connect to data base
   ostringstream uri_ss;

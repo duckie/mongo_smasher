@@ -93,7 +93,7 @@ struct Config {
 struct ValuePusher {
   virtual ~ValuePusher() {};
   virtual void push(bsoncxx::builder::stream::single_context ctx) = 0;
-  virtual void push(bsoncxx::builder::stream::array_context<> ctx) = 0;
+  //virtual void push(bsoncxx::builder::stream::array_context<> ctx) = 0;
   //virtual void push(bsoncxx::builder::stream::key_context<> ctx) = 0;
 };
 
@@ -109,7 +109,7 @@ class Randomizer {
   std::map<str_view, std::unique_ptr<ValuePusher>> generators_;
 
 public:
-  Randomizer(bsoncxx::document::view);
+  Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
   ~Randomizer() = default;
 
   std::string getRandomString(size_t min, size_t max) const;
