@@ -120,7 +120,7 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_
       int max = value["max_size"].get_int32();
       generators_.emplace(name, make_unique<StringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min), static_cast<size_t>(max)));
     }
-    else if (type == str_view("string")) {
+    else if (type == str_view("int")) {
       int min = value["min"].get_int32();
       int max = value["max"].get_int32();
       generators_.emplace(name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max));
@@ -142,6 +142,8 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_
         auto &new_vector = value_lists_[filename];
         while (std::getline(file_in, line))
           new_vector.emplace_back(line.c_str());
+
+        log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(), new_vector.size());
       }
 
       // Register the type
@@ -199,7 +201,7 @@ void run_stream(Config const &config) {
   Randomizer randomizer(view, root_path.data());
 
   // Connect to data base
-  // TODO: Manage exceptions
+  // TODO: Manage failures
   std::string db_uri = fmt::format("mongodb://{}:{}", config.host, config.port);
   mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", db_uri.c_str());
   mongocxx::instance inst{};
