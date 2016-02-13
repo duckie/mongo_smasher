@@ -97,6 +97,7 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_
   using bsx::document::element;
   using bsx::stdx::string_view;
 
+  boost::filesystem::path system_root_path(root_path.data());
   auto values = model["values"];
 
   if (values.type() != bsx::type::k_array) {
@@ -128,9 +129,11 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_
       auto filename = to_str_view(value["file"]);
       auto value_list_it = value_lists_.find(filename);
       if (end(value_lists_) == value_list_it) {
-        std::ifstream file_in(filename.data());
+        auto file_path = system_root_path;
+        file_path.append(filename.data());
+        std::ifstream file_in(file_path.string().c_str());
         if (!file_in) {
-          log(log_level::fatal, "Cannot open file \"%s\".\n", filename.data());
+          log(log_level::fatal, "Cannot open file \"%s\".\n", file_path.string().c_str());
           throw exception();
         }
 
