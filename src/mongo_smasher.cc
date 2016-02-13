@@ -10,6 +10,8 @@
 #include <bsoncxx/view_or_value.hpp>
 #include <bsoncxx/document/value.hpp>
 #include <bsoncxx/types/value.hpp>
+#include <mongocxx/client.hpp>
+#include <mongocxx/instance.hpp>
 
 using namespace std;
 
@@ -201,6 +203,14 @@ void run_stream(Config const &config) {
 
   // Building randomizer to cache the file contents
   Randomizer randomizer(view);
+
+  // Connect to data base
+  ostringstream uri_ss;
+  uri_ss << "mongodb://" << config.host << ":" << config.port;
+  mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", uri_ss.str().c_str());
+  mongocxx::instance inst{};
+  mongocxx::client conn{mongocxx::uri{uri_ss.str()}};
+
 
   // for (auto collection_it = view.cbegin(); collection_it != view.cend();
   // ++collection_it) {

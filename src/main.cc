@@ -58,11 +58,11 @@ int main(int argc, char * argv[]) {
   // Caching list stored into files  
   // Filling up the DBs
 
-  ostringstream uri_ss;
-  uri_ss << "mongodb://" << config.host << ":" << config.port;
-  mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", uri_ss.str().c_str());
-  mongocxx::instance inst{};
-  mongocxx::client conn{mongocxx::uri{uri_ss.str()}};
+  //ostringstream uri_ss;
+  //uri_ss << "mongodb://" << config.host << ":" << config.port;
+  //mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", uri_ss.str().c_str());
+  //mongocxx::instance inst{};
+  //mongocxx::client conn{mongocxx::uri{uri_ss.str()}};
 
 
   /*
