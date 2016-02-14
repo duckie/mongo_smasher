@@ -85,6 +85,10 @@ typename enum_view_definition<log_level>::type
     enum_view_definition<log_level>::str_array = {"debug", "info",  "warning",
                                                   "error", "fatal", "quiet"};
 
+template <>
+typename enum_view_definition<frequency_type>::type
+    enum_view_definition<frequency_type>::str_array = {"linear","cyclic_gaussian","sinusoidal"};
+
 log_level &mutable_global_log_level() {
   static log_level global_level{log_level::info};
   return global_level;
@@ -101,14 +105,16 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path) : gen_
   boost::filesystem::path system_root_path(root_path.data());
   auto values = model["values"];
 
-  if (values.type() != bsx::type::k_array) {
-    log(log_level::fatal, "The \"values\" must be an array of objects.");
-    throw exception();
-  }
+  //if (values.type() != bsx::type::k_array) {
+    //log(log_level::fatal, "The \"values\" must be an array of objects.");
+    //throw exception();
+  //}
 
-  for (auto value : values.get_array().value) {
+  auto values_view = values.get_document().view();
+  for (auto values_it = values_view.cbegin(); values_it != values_view.cend(); ++values_it) {
+    auto value = values_it->get_document().view();
     auto type = to_str_view(value["type"]);
-    auto name = to_str_view(value["name"]);
+    auto name = values_it->key();
     if (name.empty() || type.empty()) {
       log(log_level::warning,
           "Neither name or type of a generator can be empty.\n");
@@ -169,7 +175,7 @@ string Randomizer::getRandomString(size_t min, size_t max) const {
 
 void run_stream(Config const &config) {
 
-  // Stage 1 - Load the file
+  // Load the file
   std::ifstream model_file_stream(config.model_file,
                                   std::ios::in | std::ios::binary);
   if (!model_file_stream) {
@@ -201,20 +207,25 @@ void run_stream(Config const &config) {
   Randomizer randomizer(view, root_path.data());
 
   // Connect to data base
-  // TODO: Manage failures
+  // TODO: Manage failures properly.
   std::string db_uri = fmt::format("mongodb://{}:{}", config.host, config.port);
   mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", db_uri.c_str());
   mongocxx::instance inst{};
   mongocxx::client conn{mongocxx::uri{db_uri}};
 
+  auto collections_view = model.view()["collections"].get_document().view();
 
-  // for (auto collection_it = view.cbegin(); collection_it != view.cend();
-  // ++collection_it) {
-  // auto const & collection_view = *collection_it;
-  // std::string name = collection_view["name"].get_utf8().value.to_string();
-  //}
-  // for (auto elem : model) {
-  //}
+  // First scan of the collections to determine the frequencies
+  // TODO: use a SAT solver for dependencies
+  std::vector<Collection> collections;
+   
+  for (auto collection_it = collections_view.cbegin(); collection_it != collections_view.cend();
+      ++collection_it) {
+    auto const & collection_view = *collection_it;
+    auto name = to_str_view(collection_view["name"]);
+    float weight = collection_view["weight"].get_double();
+
+  }
 };
 
 } // namespace mongo_smasher

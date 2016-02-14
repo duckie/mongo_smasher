@@ -125,6 +125,25 @@ public:
   }
 };
 
+enum class frequency_type : size_t {
+  linear,
+  cyclic_gaussian,
+  sinusoidal,
+  FREQUENCY_TYPE_MAX
+};
+
+template <> struct enum_view_size<frequency_type> {
+  static constexpr size_t const value = static_cast<size_t>(frequency_type::FREQUENCY_TYPE_MAX);
+};
+
+struct Collection {
+  str_view name;
+  bsoncxx::document::view const& model;
+  frequency_type freq_type;
+  double weight;
+  double freq_center;
+  double freq_offset;
+};
 
 void run_stream(Config const& config);
 
