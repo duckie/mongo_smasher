@@ -14,6 +14,8 @@
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/helpers.hpp>
+#include <mongocxx/client.hpp>
+#include <mongocxx/instance.hpp>
 
 namespace mongo_smasher {
 using str_view = bsoncxx::stdx::string_view;
@@ -90,11 +92,14 @@ struct Config {
   size_t threads;
 };
 
-struct ValuePusher {
-  virtual ~ValuePusher() {};
-  virtual void push(bsoncxx::builder::stream::single_context ctx) = 0;
-  //virtual void push(bsoncxx::builder::stream::array_context<> ctx) = 0;
-  //virtual void push(bsoncxx::builder::stream::key_context<> ctx) = 0;
+class ValuePusher {
+  std::function<void(bsoncxx::builder::stream::single_context)> function_;
+
+ public:
+  ValuePusher();
+  virtual ~ValuePusher() = default;
+  virtual void operator()(bsoncxx::builder::stream::single_context ctx) = 0;
+  std::function<void(bsoncxx::builder::stream::single_context)>& get_pusher();
 };
 
 class Randomizer {
@@ -105,13 +110,14 @@ class Randomizer {
   mutable std::uniform_int_distribution<unsigned int> char_chooser_ =
       std::uniform_int_distribution<unsigned int>(0u, alnums_size - 1u);
 
-  std::map<str_view, std::vector<str_view>> value_lists_;
+  std::map<str_view, std::vector<std::string>> value_lists_;
   std::map<str_view, std::unique_ptr<ValuePusher>> generators_;
 
 public:
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
   ~Randomizer() = default;
 
+  std::function<void(bsoncxx::builder::stream::single_context)>& get_value_pusher(str_view name);
   std::string getRandomString(size_t min, size_t max) const;
   template <class T> T const &getRandomPick(std::vector<T> const &values) const;
   template <class T>
@@ -138,13 +144,24 @@ template <> struct enum_view_size<frequency_type> {
 
 struct Collection {
   str_view name;
-  bsoncxx::document::view const& model;
-  frequency_type freq_type;
+  bsoncxx::document::element model;
   double weight;
-  double freq_center;
-  double freq_offset;
 };
 
+class ProcessingUnit {
+  mongocxx::client db_conn_; 
+  Randomizer& randomizer_;
+  std::vector<Collection> collections_;
+
+  void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::array& ctx);
+  void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::document& ctx);
+
+ public:
+  ProcessingUnit(Randomizer& randomizer, std::string const& db_uri, bsoncxx::document::view collections);
+  void process_tick();
+};
+
+void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::single_context& ctx);
 void run_stream(Config const& config);
 
 } // namespace mongo_smasher
