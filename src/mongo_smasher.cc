@@ -18,6 +18,7 @@
 #include "logger.h"
 #include "randomizer.h"
 #include "process_unit.h"
+#include <chrono>
 
 using namespace std;
 namespace bsx = bsoncxx;
@@ -77,11 +78,30 @@ void run_stream(Config const &config) {
   if (view["collections"].type() != bsx::type::k_document) {
     log(log_level::fatal, "what");
   }
-  ProcessingUnit unit{randomizer, db_uri,
-                      view["collections"].get_document().view()};
+  std::vector<ProcessingUnit> units;
+  //ProcessingUnit unit{randomizer, db_uri,
+                      //view["collections"].get_document().view()};
+  for(auto collection_view : view["collections"].get_document().view()) {
+    units.emplace_back(randomizer, db_uri, collection_view);
+  }
 
+  // Start a clock
+  auto start = std::chrono::high_resolution_clock::now();
   for (;;) {
-    unit.process_tick();
+    for(auto& unit : units) {
+      unit.process_tick();
+    }
+    auto stop = std::chrono::high_resolution_clock::now();
+    if (std::chrono::milliseconds(1000) < (stop - start)) {
+      // Update status line
+      std::ostringstream status_line;
+      for(auto& unit : units) {
+        status_line << unit.name() << '[' << unit.nb_inserted() << "] ";
+      }
+      log(log_level::info,"%s\n", status_line.str().c_str());
+      start = stop;
+    }
+
   }
   // static_assert(bsx::util::is_functor<std::function<void(bsoncxx::builder::stream::single_context)>&,void(bsx::builder::stream::single_context)>::value,
   // "Nope");

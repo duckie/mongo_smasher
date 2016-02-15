@@ -13,16 +13,21 @@ struct Collection {
 };
 
 class ProcessingUnit {
-  mongocxx::client db_conn_; 
   Randomizer& randomizer_;
-  std::vector<Collection> collections_;
+  mongocxx::client db_conn_; 
+  bsoncxx::stdx::string_view name_;
+  bsoncxx::document::element model_;
+  size_t nb_instances_ = 0u;
+  double weight_ = 1.;
 
   void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::array& ctx);
   void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::document& ctx);
 
  public:
-  ProcessingUnit(Randomizer& randomizer, std::string const& db_uri, bsoncxx::document::view collections);
+  ProcessingUnit(Randomizer& randomizer, std::string const& db_uri, bsoncxx::document::element const& collection);
   void process_tick();
+  bsoncxx::stdx::string_view name() const;
+  size_t nb_inserted() const;
 };
 
 }  // namespace mongo_smasher
