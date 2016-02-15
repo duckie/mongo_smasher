@@ -8,10 +8,10 @@ class ValuePusher {
   std::function<void(bsoncxx::builder::stream::single_context)> function_;
 
  public:
-  ValuePusher();
+  ValuePusher() = default;
   virtual ~ValuePusher() = default;
   virtual void operator()(bsoncxx::builder::stream::single_context ctx) = 0;
-  std::function<void(bsoncxx::builder::stream::single_context)>& get_pusher();
+  std::function<void(bsoncxx::builder::stream::single_context)> const & get_pusher();
 };
 
 }  // namespace mongo_smasher

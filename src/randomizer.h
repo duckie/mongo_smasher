@@ -23,19 +23,7 @@ class Randomizer {
 public:
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
   ~Randomizer() = default;
-
-  std::function<void(bsoncxx::builder::stream::single_context)>& get_value_pusher(bsoncxx::stdx::string_view name);
-  std::string getRandomString(size_t min, size_t max) const;
-  template <class T> T const &getRandomPick(std::vector<T> const &values) const;
-  template <class T>
-  T getRandomInteger(T min = std::numeric_limits<T>::lowest(),
-                     T max = std::numeric_limits<T>::max()) {
-    static_assert(std::numeric_limits<T>::is_integer,
-                  "The type used for Randomizer::getRandomInteger must be an "
-                  "integer type.");
-    std::uniform_int_distribution<T> int_chooser(min, max);
-    return int_chooser(gen_);
-  }
+  std::function<void(bsoncxx::builder::stream::single_context)> const & get_value_pusher(bsoncxx::stdx::string_view name);
 };
 
 };

@@ -143,14 +143,7 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
   return;
 }
 
-string Randomizer::getRandomString(size_t min, size_t max) const {
-  ostringstream output;
-  for (size_t index = min; index < max; ++index)
-    output << alnums.at(char_chooser_(gen_));
-  return output.str();
-}
-
-std::function<void(bsx::builder::stream::single_context)> &
+std::function<void(bsx::builder::stream::single_context)> const &
 Randomizer::get_value_pusher(str_view name) {
   return generators_[name]->get_pusher();
 }
