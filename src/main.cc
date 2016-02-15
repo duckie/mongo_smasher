@@ -11,6 +11,7 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
 #include "mongo_smasher.h"
+#include "logger.h"
 
 using namespace std;
 
