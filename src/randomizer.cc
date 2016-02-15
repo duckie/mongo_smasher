@@ -3,6 +3,7 @@
 #include <bsoncxx/stdx/make_unique.hpp>
 #include <sstream>
 #include <fstream>
+#include <regex>
 #include "logger.h"
 
 namespace bsx = bsoncxx;
@@ -13,6 +14,18 @@ using bsx::stdx::make_unique;
 namespace mongo_smasher {
 
 namespace {
+
+std::regex simple_range_regex {"(\\d+):(\\d+)"};
+
+template <class Generator> class SimpleRangeSizeGenerator : public RangeSizeGenerator {
+  Generator &gen_;
+  std::uniform_int_distribution<size_t> distrib_;
+ public:
+  SimpleRangeSizeGenerator(Generator& gen, size_t min, size_t max) : gen_(gen), distrib_(min,max) {} 
+  size_t generate_size() override {
+    return distrib_(gen_);
+  };
+};
 
 // Select a value in a vector
 template <class Generator> class ValuePickPusher : public ValuePusher {
@@ -141,6 +154,30 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
 
   log(log_level::info, "Randomizer caching finished.\n");
   return;
+}
+
+RangeSizeGenerator& Randomizer::get_range_size_generator(bsoncxx::stdx::string_view range_expression) {
+  auto gen_it = range_size_generators_.find(range_expression.to_string());
+  if (end(range_size_generators_) == gen_it) {
+    std::unique_ptr<RangeSizeGenerator> new_generator;
+    std::smatch base_match;
+    std::string str_range_expression = range_expression.to_string();
+    if (std::regex_match(str_range_expression, base_match, simple_range_regex)) {
+      new_generator.reset(new SimpleRangeSizeGenerator<decltype(gen_)>(gen_,std::stoul(base_match[1].str(),nullptr,10), std::stoul(base_match[2].str(),nullptr,10)));
+    }
+    if (new_generator) {
+      auto insert_result = range_size_generators_.emplace(str_range_expression, std::move(new_generator));
+      if (insert_result.second)
+        return *insert_result.first->second;
+      else
+        throw exception();
+    }
+  }
+  return *gen_it->second;
+}
+
+std::mt19937& Randomizer::random_generator() {
+  return gen_;
 }
 
 std::function<void(bsx::builder::stream::single_context)> const &
