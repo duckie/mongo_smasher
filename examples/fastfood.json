@@ -1,19 +1,35 @@
 {
-  "values":[
-    {"name":"lastname","method":"filepick","file":"dictionaries/names.txt"},
-    {"name":"firstname","method":"filepick","file":"dictionaries/first-names.txt"},
-    {"name":"middlename","method":"filepick","file":"dictionaries/middle-names.txt"},
-    {"name":"age","method":"intrangepick","start":18,"end":70}
+  "functions":[
+     
   ],
-  "collections":[
-    {
-      "name":"restaurants",
+  "values":{
+    "lastname":{"type":"filepick","file":"dictionaries/names.txt"},
+    "firstname":{"type":"filepick","file":"dictionaries/first-names.txt"},
+    "middlename":{"type":"filepick","file":"dictionaries/middle-names.txt"},
+    "reference_1":{"type":"string","min_size":10,"max_size":10},
+    "meal_price":{"type":"int","min":5,"max":30}
+  },
+  "collections":{
+    "restaurants":{
       "schema":{
         "owner":{
-          "firstname":"${firstname}",
-          "lastname":"${lastname}"
-        }
+          "firstname":"$firstname",
+          "lastname":"$lastname"
+        },
+        "menu[5:10]": {"name":"$reference_1","price":"$meal_price"}
+      },
+      "weight":1.0,
+      "bulk_size":1000
+    },
+    "orders":{
+      "schema":{
+        "client":{
+          "firstname":"$firstname",
+          "lastname":"$lastname"
+        },
+        "restaurant":"&restaurants",
+        "items[5:10]": {"name":"$reference_1"}
       }
     }
-  ]
+  }
 }
