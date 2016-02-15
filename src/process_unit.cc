@@ -7,11 +7,15 @@ namespace bsx = bsoncxx;
 
 ProcessingUnit::ProcessingUnit(Randomizer &randomizer,
                                std::string const &db_uri,
-                               bsoncxx::document::element const &collection)
-    : randomizer_{randomizer}, db_conn_{mongocxx::uri{db_uri}},
-      name_{collection.key()},
-      model_(collection.get_document().view()["schema"])
-      {}
+                               bsx::stdx::string_view name,
+                               bsoncxx::document::view const &collection)
+    : randomizer_{randomizer}, db_conn_{mongocxx::uri{db_uri}}, name_{name},
+      model_(collection["schema"]),
+      bulk_size_(to_int<size_t>(collection,"bulk_size", 1u)) 
+{
+  bulk_docs_.reserve(bulk_size_);
+  bulk_views_.reserve(bulk_size_);
+}
 
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::array &ctx) {}
@@ -36,21 +40,24 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
 }
 
 void ProcessingUnit::process_tick() {
-    auto db_collection = db_conn_["test"][name_];
-    bsx::builder::stream::document document;
-    for (auto value : model_.get_document().view()) {
-      process_element(value, document);
-    }
-    db_collection.insert_one(document.view());
-    ++nb_instances_;
+  auto db_collection = db_conn_["test"][name_];
+  bsx::builder::stream::document document;
+  for (auto value : model_.get_document().view()) {
+    process_element(value, document);
+  }
+  bulk_docs_.emplace_back(std::move(document)); 
+  bulk_views_.emplace_back(bulk_docs_.back().view());
+  if (bulk_size_ <= bulk_docs_.size()) {
+    db_collection.insert_many(bulk_views_);
+    nb_instances_ += bulk_size_;
+    bulk_docs_.clear();
+    bulk_views_.clear();
+  }
+    
 }
 
-bsx::stdx::string_view ProcessingUnit::name() const { 
-  return name_;
-}
+bsx::stdx::string_view ProcessingUnit::name() const { return name_; }
 
-size_t ProcessingUnit::nb_inserted() const { 
-  return nb_instances_;
-}
+size_t ProcessingUnit::nb_inserted() const { return nb_instances_; }
 
 } // namespace mongo_smasher

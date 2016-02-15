@@ -82,7 +82,8 @@ void run_stream(Config const &config) {
   //ProcessingUnit unit{randomizer, db_uri,
                       //view["collections"].get_document().view()};
   for(auto collection_view : view["collections"].get_document().view()) {
-    units.emplace_back(randomizer, db_uri, collection_view);
+    log(log_level::debug,"Registering %s\n", collection_view.key().data());
+    units.emplace_back(randomizer, db_uri, collection_view.key(), collection_view.get_document().view());
   }
 
   // Start a clock

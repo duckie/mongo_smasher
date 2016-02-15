@@ -20,11 +20,15 @@ class ProcessingUnit {
   size_t nb_instances_ = 0u;
   double weight_ = 1.;
 
+  size_t bulk_size_ = 1u;
+  std::vector<bsoncxx::builder::stream::document> bulk_docs_;
+  std::vector<bsoncxx::document::view> bulk_views_;
+
   void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::array& ctx);
   void process_element(bsoncxx::document::element const& element, bsoncxx::builder::stream::document& ctx);
 
  public:
-  ProcessingUnit(Randomizer& randomizer, std::string const& db_uri, bsoncxx::document::element const& collection);
+  ProcessingUnit(Randomizer& randomizer, std::string const& db_uri, bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection);
   void process_tick();
   bsoncxx::stdx::string_view name() const;
   size_t nb_inserted() const;

@@ -40,4 +40,17 @@ inline bsoncxx::stdx::string_view to_str_view(bsoncxx::document::element const& 
   return elem.get_utf8().value;
 }
 
+template <class T>  
+T to_int(bsoncxx::document::view const& view, bsoncxx::stdx::string_view name, T default_value) {
+  auto view_it = view.find(name);
+  if (view_it != view.end()) {
+    auto elem = *view_it;
+    if (elem.type() == bsoncxx::type::k_int64)
+      return static_cast<T>(elem.get_int64().value);
+    else if (elem.type() == bsoncxx::type::k_int32)
+      return static_cast<T>(elem.get_int32().value);
+  }
+  return default_value;
+}
+
 }
