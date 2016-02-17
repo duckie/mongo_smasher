@@ -1,19 +1,16 @@
 {
   "values":{
-    "lastname":{"type":"filepick","file":"dictionaries/names.txt"},
-    "firstname":{"type":"filepick","file":"dictionaries/first-names.txt"},
-    "middlename":{"type":"filepick","file":"dictionaries/middle-names.txt"},
-    "reference_1":{"type":"string","min_size":10,"max_size":10},
-    "meal_price":{"type":"int","min":5,"max":30},
     "id":{"type":"incremental_id"},
     "restaurant_name":{"type":"string","min_size":10,"max_size":150},
     "score":{"type":"int","min":-1,"max":131},
     "grade":{"type":"pick", "values":["A","B","C","D","E","F"]},
-    "grade_date":{"type":"date","min":"2012-01-01 00:00:00","max":"2016-02-29 00:00:00"}
+    "grade_date":{"type":"date","min":"2012-01-01 00:00:00","max":"2016-02-29 00:00:00"},
+    "cuisine":{"type":"pick","file":"ny/cuisines.txt"}
   },
   "collections":{
     "restaurants":{
       "schema":{
+        "cuisine":"$cuisine",
         "grades[0:15]":{
           "date":"$grade_date",
           "grade":"$grade",

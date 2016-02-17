@@ -186,7 +186,7 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
           }
 
           std::string line;
-          auto &new_vector = value_lists_[filename];
+          auto &new_vector = value_lists_[name];
           while (std::getline(file_in, line)) new_vector.emplace_back(line.c_str());
 
           log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(),
