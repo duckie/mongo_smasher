@@ -129,6 +129,20 @@ class IncrementalIDPusher : public ValuePusher {
     ctx << bsx::types::b_utf8 {std::to_string(++id_)};
   }
 };
+
+template <class Generator>
+class DatePusher : public ValuePusher {
+  Generator &gen_;
+  std::uniform_int_distribution<int> distrib_;
+
+ public:
+  DatePusher(Generator &gen, int min, int max) : gen_(gen), distrib_(min, max) {
+  }
+
+  void operator()(bsoncxx::builder::stream::single_context ctx) override {
+    ctx << bsx::types::b_date {distrib_(gen_)};
+  }
+};
 }
 
 Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
@@ -151,25 +165,43 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
     if (type == str_view("string")) {
     } else if (type == str_view("int")) {
     }
-    if (type == str_view("filepick")) {
-      // Cache the file if not already done
-      auto filename = to_str_view(value["file"]);
-      auto value_list_it = value_lists_.find(filename);
-      if (end(value_lists_) == value_list_it) {
-        auto file_path = system_root_path;
-        file_path.append(filename.data());
-        std::ifstream file_in(file_path.string().c_str());
-        if (!file_in) {
-          log(log_level::fatal, "Cannot open file \"%s\".\n", file_path.string().c_str());
-          throw exception();
+    if (type == str_view("pick")) {
+      // Is it a file ?
+      auto file_it = value.find("file");
+      if (file_it != value.end()) {
+        // Cache the file if not already done
+        auto filename = to_str_view(*file_it);
+        auto value_list_it = value_lists_.find(name);
+        if (end(value_lists_) == value_list_it) {
+          auto file_path = system_root_path;
+          file_path.append(filename.data());
+          std::ifstream file_in(file_path.string().c_str());
+          if (!file_in) {
+            log(log_level::fatal, "Cannot open file \"%s\".\n", file_path.string().c_str());
+            throw exception();
+          }
+
+          std::string line;
+          auto &new_vector = value_lists_[filename];
+          while (std::getline(file_in, line)) new_vector.emplace_back(line.c_str());
+
+          log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(),
+              new_vector.size());
         }
-
-        std::string line;
-        auto &new_vector = value_lists_[filename];
-        while (std::getline(file_in, line)) new_vector.emplace_back(line.c_str());
-
-        log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(),
-            new_vector.size());
+      }
+      else {
+        auto local_values_it = value.find("values");
+        if (local_values_it != value.end()) {
+          if (local_values_it->type() == bsx::type::k_array) {
+            auto &new_vector = value_lists_[name];
+            for (auto local_value : local_values_it->get_array().value) {
+              new_vector.push_back(local_value.get_utf8().value.to_string());  
+            }
+          }
+        }
+        else {
+          log(log_level::error, "Value \"%s\" should either have a file or a list of values.\n",name.data());
+        }
       }
     } else {
       log(log_level::error, "Unknown value type \"%s\".\n", type.data());
@@ -237,6 +269,12 @@ std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get
       value_pusher_it =
           col_generators.emplace(name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max))
               .first;
+    } else if (type == str_view("date")) {
+      int min = value["min"].get_int32();
+      int max = value["max"].get_int32();
+      value_pusher_it =
+          col_generators.emplace(name, make_unique<DatePusher<decltype(gen_)>>(gen_, min, max))
+              .first;
     } else if (type == str_view("double")) {
       double min = value["min"].get_double();
       double max = value["max"].get_double();
@@ -245,9 +283,9 @@ std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get
               .first;
     } else if (type == str_view("incremental_id")) {
       value_pusher_it = col_generators.emplace(name, make_unique<IncrementalIDPusher>()).first;
-    } else if (type == str_view("filepick")) {
+    } else if (type == str_view("pick")) {
       // Register the type
-      auto const &possible_values = value_lists_[to_str_view(value["file"])];
+      auto const &possible_values = value_lists_[name];
       value_pusher_it = col_generators.emplace(name, make_unique<ValuePickPusher<decltype(gen_)>>(
                                                          gen_, possible_values))
                             .first;
