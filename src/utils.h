@@ -2,6 +2,7 @@
 #include <bsoncxx/stdx/string_view.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <type_traits>
+#include <chrono>
 
 namespace mongo_smasher {
 // Snippet used to simplify the enum <-> string relationship without macros
@@ -52,5 +53,8 @@ T to_int(bsoncxx::document::view const& view, bsoncxx::stdx::string_view name, T
   }
   return default_value;
 }
+
+std::chrono::high_resolution_clock::time_point parse_iso_date(std::string const& date);
+std::chrono::high_resolution_clock::time_point parse_iso_date(bsoncxx::stdx::string_view date);
 
 }

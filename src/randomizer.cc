@@ -4,9 +4,11 @@
 #include <fstream>
 #include <regex>
 #include "logger.h"
+#include "utils.h"
 
 namespace bsx = bsoncxx;
 using namespace std;
+using namespace std::chrono;
 using str_view = bsx::stdx::string_view;
 using bsx::stdx::make_unique;
 
@@ -133,14 +135,16 @@ class IncrementalIDPusher : public ValuePusher {
 template <class Generator>
 class DatePusher : public ValuePusher {
   Generator &gen_;
-  std::uniform_int_distribution<int> distrib_;
+  std::uniform_int_distribution<size_t> distrib_;
+
 
  public:
-  DatePusher(Generator &gen, int min, int max) : gen_(gen), distrib_(min, max) {
+  DatePusher(Generator &gen, high_resolution_clock::time_point const& min, high_resolution_clock::time_point const& max) : gen_(gen), 
+  distrib_(duration_cast<seconds>(min.time_since_epoch()).count(), duration_cast<seconds>(max.time_since_epoch()).count()) {
   }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << bsx::types::b_date {distrib_(gen_)};
+    ctx << bsx::types::b_date { static_cast<int64_t>(1000u*distrib_(gen_)) };
   }
 };
 }
@@ -270,8 +274,8 @@ std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get
           col_generators.emplace(name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max))
               .first;
     } else if (type == str_view("date")) {
-      int min = value["min"].get_int32();
-      int max = value["max"].get_int32();
+      auto min = parse_iso_date(value["min"].get_utf8().value);
+      auto max = parse_iso_date(value["max"].get_utf8().value);
       value_pusher_it =
           col_generators.emplace(name, make_unique<DatePusher<decltype(gen_)>>(gen_, min, max))
               .first;

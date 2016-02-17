@@ -9,7 +9,7 @@
     "restaurant_name":{"type":"string","min_size":10,"max_size":150},
     "score":{"type":"int","min":-1,"max":131},
     "grade":{"type":"pick", "values":["A","B","C","D","E","F"]},
-    "grade_date":{"type":"date","min":1293840000,"max":1455732833}
+    "grade_date":{"type":"date","min":"2012-01-01 00:00:00","max":"2016-02-29 00:00:00"}
   },
   "collections":{
     "restaurants":{
