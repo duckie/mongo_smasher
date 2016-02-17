@@ -19,7 +19,7 @@
         "menu[5:10]": {"name":"$reference_1","price":"$meal_price"}
       },
       "weight":1.0,
-      "bulk_size":1000
+      "bulk_size":1
     },
     "orders":{
       "schema":{
@@ -29,7 +29,8 @@
         },
         "restaurant":"&restaurants",
         "items[5:10]": {"name":"$reference_1"}
-      }
+      },
+      "bulk_size":1
     }
   }
 }

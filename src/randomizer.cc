@@ -1,5 +1,4 @@
 #include "randomizer.h"
-#include <boost/filesystem/path.hpp>
 #include <bsoncxx/stdx/make_unique.hpp>
 #include <sstream>
 #include <fstream>
@@ -15,27 +14,32 @@ namespace mongo_smasher {
 
 namespace {
 
-std::regex simple_range_regex {"(\\d+):(\\d+)"};
+std::regex simple_range_regex{"(\\d+):(\\d+)"};
 
-template <class Generator> class SimpleRangeSizeGenerator : public RangeSizeGenerator {
+template <class Generator>
+class SimpleRangeSizeGenerator : public RangeSizeGenerator {
   Generator &gen_;
   std::uniform_int_distribution<size_t> distrib_;
+
  public:
-  SimpleRangeSizeGenerator(Generator& gen, size_t min, size_t max) : gen_(gen), distrib_(min,max) {} 
+  SimpleRangeSizeGenerator(Generator &gen, size_t min, size_t max) : gen_(gen), distrib_(min, max) {
+  }
   size_t generate_size() override {
     return distrib_(gen_);
   };
 };
 
 // Select a value in a vector
-template <class Generator> class ValuePickPusher : public ValuePusher {
+template <class Generator>
+class ValuePickPusher : public ValuePusher {
   Generator &gen_;
   std::uniform_int_distribution<size_t> distrib_;
   std::vector<std::string> const &values_;
 
-public:
+ public:
   ValuePickPusher(Generator &gen, std::vector<std::string> const &values)
-      : gen_(gen), distrib_(0, values.size() - 1), values_(values) {}
+      : gen_(gen), distrib_(0, values.size() - 1), values_(values) {
+  }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
     ctx << values_[distrib_(gen_)];
@@ -45,82 +49,109 @@ public:
 struct StringPusherData {
   static str_view const alnums;
 };
-str_view const StringPusherData::alnums =
-    "abcdefghijklmnopqrstuvwxyz0123456789";
+str_view const StringPusherData::alnums = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 template <class Generator>
 class StringPusher : public ValuePusher, private StringPusherData {
   Generator &gen_;
   std::uniform_int_distribution<size_t> distrib_;
   // The char_chooser is kept here because it cannot stay const
-  std::uniform_int_distribution<size_t> char_chooser_{
-      0u, StringPusherData::alnums.size() - 1u};
+  std::uniform_int_distribution<size_t> char_chooser_{0u, StringPusherData::alnums.size() - 1u};
 
-public:
+ public:
   StringPusher(Generator &gen, size_t min_size, size_t max_size)
-      : gen_(gen), distrib_(min_size, max_size) {}
+      : gen_(gen), distrib_(min_size, max_size) {
+  }
+
+  void operator()(bsoncxx::builder::stream::single_context ctx) override {
+    ostringstream value_stream;
+    size_t size = distrib_(gen_);
+    for (size_t index = 0u; index < size; ++index) value_stream << alnums[char_chooser_(gen_)];
+    ctx << value_stream.str();
+  }
+};
+
+template <class Generator>
+class AsciiStringPusher : public ValuePusher {
+  Generator &gen_;
+  std::uniform_int_distribution<size_t> distrib_;
+  // The char_chooser is kept here because it cannot stay const
+  std::uniform_int_distribution<unsigned char> char_chooser_{0u, 255u};
+
+ public:
+  AsciiStringPusher(Generator &gen, size_t min_size, size_t max_size)
+      : gen_(gen), distrib_(min_size, max_size) {
+  }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
     ostringstream value_stream;
     size_t size = distrib_(gen_);
     for (size_t index = 0u; index < size; ++index)
-      value_stream << alnums[char_chooser_(gen_)];
+      value_stream << static_cast<char>(char_chooser_(gen_));
     ctx << value_stream.str();
   }
 };
 
-template <class Generator> class IntPusher : public ValuePusher {
+template <class Generator>
+class IntPusher : public ValuePusher {
   Generator &gen_;
   std::uniform_int_distribution<int> distrib_;
 
-public:
-  IntPusher(Generator &gen, int min, int max) : gen_(gen), distrib_(min, max) {}
+ public:
+  IntPusher(Generator &gen, int min, int max) : gen_(gen), distrib_(min, max) {
+  }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
     ctx << distrib_(gen_);
   }
 };
+
+template <class Generator>
+class DoublePusher : public ValuePusher {
+  Generator &gen_;
+  std::uniform_real_distribution<double> distrib_;
+
+ public:
+  DoublePusher(Generator &gen, double min, double max) : gen_(gen), distrib_(min, max) {
+  }
+
+  void operator()(bsoncxx::builder::stream::single_context ctx) override {
+     ctx << bsx::types::b_double { distrib_(gen_) };
+  }
+};
+
+class IncrementalIDPusher : public ValuePusher {
+  int64_t id_ = 0;
+
+ public:
+  IncrementalIDPusher() = default;
+  void operator()(bsoncxx::builder::stream::single_context ctx) override {
+    ctx << bsx::types::b_utf8 {std::to_string(++id_)};
+  }
+};
 }
 
 Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
-    : gen_(rd_()) {
-  namespace bsx = bsoncxx;
+    : values_(model), gen_(rd_()), system_root_path_(root_path.data()) {
   using bsx::document::view;
   using bsx::document::element;
   using bsx::stdx::string_view;
 
+  // Doesnt exist we have to insert it
   boost::filesystem::path system_root_path(root_path.data());
-  auto values = model["values"];
-
-  // if (values.type() != bsx::type::k_array) {
-  // log(log_level::fatal, "The \"values\" must be an array of objects.");
-  // throw exception();
-  //}
-
-  auto values_view = values.get_document().view();
-  for (auto values_it = values_view.cbegin(); values_it != values_view.cend();
-       ++values_it) {
+  for (auto values_it = values_.cbegin(); values_it != values_.cend(); ++values_it) {
     auto value = values_it->get_document().view();
     auto type = to_str_view(value["type"]);
     auto name = values_it->key();
     if (name.empty() || type.empty()) {
-      log(log_level::warning,
-          "Neither name or type of a generator can be empty.\n");
+      log(log_level::warning, "Neither name or type of a generator can be empty.\n");
       continue;
     }
 
     if (type == str_view("string")) {
-      int min = value["min_size"].get_int32();
-      int max = value["max_size"].get_int32();
-      generators_.emplace(
-          name, make_unique<StringPusher<decltype(gen_)>>(
-                    gen_, static_cast<size_t>(min), static_cast<size_t>(max)));
     } else if (type == str_view("int")) {
-      int min = value["min"].get_int32();
-      int max = value["max"].get_int32();
-      generators_.emplace(
-          name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max));
-    } else if (type == str_view("filepick")) {
+    }
+    if (type == str_view("filepick")) {
       // Cache the file if not already done
       auto filename = to_str_view(value["file"]);
       auto value_list_it = value_lists_.find(filename);
@@ -129,44 +160,39 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
         file_path.append(filename.data());
         std::ifstream file_in(file_path.string().c_str());
         if (!file_in) {
-          log(log_level::fatal, "Cannot open file \"%s\".\n",
-              file_path.string().c_str());
+          log(log_level::fatal, "Cannot open file \"%s\".\n", file_path.string().c_str());
           throw exception();
         }
 
         std::string line;
         auto &new_vector = value_lists_[filename];
-        while (std::getline(file_in, line))
-          new_vector.emplace_back(line.c_str());
+        while (std::getline(file_in, line)) new_vector.emplace_back(line.c_str());
 
-        log(log_level::debug, "File \"%s\" cached with %lu lines.\n",
-            file_path.string().c_str(), new_vector.size());
+        log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(),
+            new_vector.size());
       }
-
-      // Register the type
-      auto const &possible_values = value_lists_[filename];
-      generators_.emplace(name, make_unique<ValuePickPusher<decltype(gen_)>>(
-                                    gen_, possible_values));
     } else {
       log(log_level::error, "Unknown value type \"%s\".\n", type.data());
     }
   }
-
   log(log_level::info, "Randomizer caching finished.\n");
-  return;
 }
 
-RangeSizeGenerator& Randomizer::get_range_size_generator(bsoncxx::stdx::string_view range_expression) {
+RangeSizeGenerator &Randomizer::get_range_size_generator(
+    bsoncxx::stdx::string_view range_expression) {
   auto gen_it = range_size_generators_.find(range_expression.to_string());
   if (end(range_size_generators_) == gen_it) {
     std::unique_ptr<RangeSizeGenerator> new_generator;
     std::smatch base_match;
     std::string str_range_expression = range_expression.to_string();
     if (std::regex_match(str_range_expression, base_match, simple_range_regex)) {
-      new_generator.reset(new SimpleRangeSizeGenerator<decltype(gen_)>(gen_,std::stoul(base_match[1].str(),nullptr,10), std::stoul(base_match[2].str(),nullptr,10)));
+      new_generator.reset(new SimpleRangeSizeGenerator<decltype(gen_)>(
+          gen_, std::stoul(base_match[1].str(), nullptr, 10),
+          std::stoul(base_match[2].str(), nullptr, 10)));
     }
     if (new_generator) {
-      auto insert_result = range_size_generators_.emplace(str_range_expression, std::move(new_generator));
+      auto insert_result =
+          range_size_generators_.emplace(str_range_expression, std::move(new_generator));
       if (insert_result.second)
         return *insert_result.first->second;
       else
@@ -176,13 +202,61 @@ RangeSizeGenerator& Randomizer::get_range_size_generator(bsoncxx::stdx::string_v
   return *gen_it->second;
 }
 
-std::mt19937& Randomizer::random_generator() {
+std::mt19937 &Randomizer::random_generator() {
   return gen_;
 }
 
-std::function<void(bsx::builder::stream::single_context)> const &
-Randomizer::get_value_pusher(str_view name) {
-  return generators_[name]->get_pusher();
+std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get_value_pusher(
+    str_view col_name, str_view name) {
+  namespace bsx = bsoncxx;
+  using bsx::document::view;
+  using bsx::document::element;
+  using bsx::stdx::string_view;
+
+  auto &col_generators = generators_[col_name];
+  auto value_pusher_it = col_generators.find(name);
+  if (end(col_generators) == value_pusher_it) {
+    // Doesnt exist we have to insert it
+    auto value = values_[name].get_document().view();
+    auto type = to_str_view(value["type"]);
+    if (name.empty() || type.empty()) {
+      log(log_level::warning, "Neither name or type of a generator can be empty.\n");
+      throw exception();
+    }
+
+    if (type == str_view("string")) {
+      int min = value["min_size"].get_int32();
+      int max = value["max_size"].get_int32();
+      value_pusher_it = col_generators.emplace(name, make_unique<StringPusher<decltype(gen_)>>(
+                                                         gen_, static_cast<size_t>(min),
+                                                         static_cast<size_t>(max)))
+                            .first;
+    } else if (type == str_view("int")) {
+      int min = value["min"].get_int32();
+      int max = value["max"].get_int32();
+      value_pusher_it =
+          col_generators.emplace(name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max))
+              .first;
+    } else if (type == str_view("double")) {
+      double min = value["min"].get_double();
+      double max = value["max"].get_double();
+      value_pusher_it =
+          col_generators.emplace(name, make_unique<DoublePusher<decltype(gen_)>>(gen_, min, max))
+              .first;
+    } else if (type == str_view("incremental_id")) {
+      value_pusher_it = col_generators.emplace(name, make_unique<IncrementalIDPusher>()).first;
+    } else if (type == str_view("filepick")) {
+      // Register the type
+      auto const &possible_values = value_lists_[to_str_view(value["file"])];
+      value_pusher_it = col_generators.emplace(name, make_unique<ValuePickPusher<decltype(gen_)>>(
+                                                         gen_, possible_values))
+                            .first;
+    } else {
+      log(log_level::error, "Unknown value type \"%s\".\n", type.data());
+    }
+  }
+
+  return value_pusher_it->second->get_pusher();
 }
 
 }  // namespace mongo_smasher

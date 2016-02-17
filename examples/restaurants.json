@@ -1,0 +1,22 @@
+{
+  "values":{
+    "lastname":{"type":"filepick","file":"dictionaries/names.txt"},
+    "firstname":{"type":"filepick","file":"dictionaries/first-names.txt"},
+    "middlename":{"type":"filepick","file":"dictionaries/middle-names.txt"},
+    "reference_1":{"type":"string","min_size":10,"max_size":10},
+    "meal_price":{"type":"int","min":5,"max":30},
+    "id":{"type":"incremental_id"},
+    "restaurant_name":{"type":"string","min_size":10,"max_size":150},
+    "score":{"type":"int","min":-1,"max":131}
+  },
+  "collections":{
+    "restaurants":{
+      "schema":{
+        "name":"$restaurant_name",
+        "restaurant_id":"$id"
+      },
+      "weight":1.0,
+      "bulk_size":1000
+    }
+  }
+}
