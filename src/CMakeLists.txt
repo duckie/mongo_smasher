@@ -79,3 +79,6 @@ add_dependencies(${PROJECT_NAME} mongodb-cxx-driver libcppformat)
 
 ### Linking ###
 target_link_libraries(${PROJECT_NAME} ${LIBRARIES})
+
+### Tests ###
+add_subdirectory(test)

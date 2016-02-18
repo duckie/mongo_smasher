@@ -23,6 +23,5 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 configure_file(${PROJECT_SOURCE_DIR}/cmake/BuildConfig.json.in ${PROJECT_SOURCE_DIR}/BuildConfig.json)
 
 # Main source directory
+enable_testing()
 add_subdirectory (src)
-#add_subdirectory (test)
-
