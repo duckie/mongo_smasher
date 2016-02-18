@@ -90,6 +90,23 @@ auto ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) -> key_param
 // return view;
 //}
 
+void ProcessingUnit::process_element(bsoncxx::array::element const &element,
+                                     bsx::builder::stream::array &ctx) {
+  if (element.type() == bsx::type::k_utf8) {
+    auto value = to_str_view(element);
+    // First stage are statements over the key
+    if ('$' == value[0]) {
+      ctx << randomizer_.get_value_pusher(name_, value.substr(1));
+    }
+  } else if (element.type() == bsx::type::k_document) {
+    bsx::builder::stream::document child;
+    for (auto value : element.get_document().view()) {
+      process_element(value, child);
+    }
+    ctx << bsx::types::b_document{child.view()};
+  }
+}
+
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::array &ctx) {
   if (element.type() == bsx::type::k_utf8) {
@@ -141,6 +158,12 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
         process_element(value, child);
       }
       ctx << element.key() << bsx::types::b_document{child.view()};
+    } else if (element.type() == bsx::type::k_array) {
+      bsx::builder::stream::array child;
+      for (auto value : element.get_array().value) {
+        process_element(value, child);
+      }
+      ctx << element.key() << bsx::types::b_array{child.view()};
     }
   }
 }

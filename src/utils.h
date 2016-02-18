@@ -41,6 +41,10 @@ inline bsoncxx::stdx::string_view to_str_view(bsoncxx::document::element const& 
   return elem.get_utf8().value;
 }
 
+inline bsoncxx::stdx::string_view to_str_view(bsoncxx::array::element const& elem) {
+  return elem.get_utf8().value;
+}
+
 template <class T>  
 T to_int(bsoncxx::document::view const& view, bsoncxx::stdx::string_view name, T default_value) {
   auto view_it = view.find(name);

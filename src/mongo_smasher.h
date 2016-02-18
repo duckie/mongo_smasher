@@ -19,27 +19,27 @@
 namespace mongo_smasher {
 
 struct Config {
-    std::string model_file;
-    std::string host;
-    size_t port;
-    size_t threads;
+  std::string model_file;
+  std::string host;
+  size_t port;
+  size_t threads;
 };
 
 enum class frequency_type : size_t { linear, cyclic_gaussian, sinusoidal, FREQUENCY_TYPE_MAX };
 
 template <>
 struct enum_view_size<frequency_type> {
-    static constexpr size_t const value = static_cast<size_t>(frequency_type::FREQUENCY_TYPE_MAX);
+  static constexpr size_t const value = static_cast<size_t>(frequency_type::FREQUENCY_TYPE_MAX);
 };
 
 class CollectionHub {
-    mongocxx::client db_conn_;
-    std::string db_name_;
-    std::map<std::string, mongocxx::collection> collections_;
+  mongocxx::client db_conn_;
+  std::string db_name_;
+  std::map<std::string, mongocxx::collection> collections_;
 
-   public:
-    CollectionHub(std::string db_uri, std::string db_name);
-    mongocxx::collection& operator[](std::string const& collection_name);
+ public:
+  CollectionHub(std::string db_uri, std::string db_name);
+  mongocxx::collection& operator[](std::string const& collection_name);
 };
 
 void run_stream(Config const& config);
