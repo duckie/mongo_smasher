@@ -49,7 +49,7 @@ template <class T> class Queue {
     if (max_size_ <= size_) {
       ++waiting_writers_;
       time_point_t start = wait_clock_t::now();
-      push_guard_.wait(lock);
+      push_guard_.wait(lock, [this]() { return this->size_ < this->max_size_; });
       wait_time = std::chrono::duration_cast<duration_t>(wait_clock_t::now() - start);
       --waiting_writers_;
     }
@@ -61,11 +61,11 @@ template <class T> class Queue {
     // Help another potential waiting thread to be unlocked
     if (waiting_readers_) {
       lock.unlock();
-      pop_guard_.notify_all();
+      pop_guard_.notify_one();
     }
     else if (size_ < max_size_ - 1 && waiting_writers_) {
       lock.unlock();
-      push_guard_.notify_all();
+      push_guard_.notify_one();
     }
 
     return wait_time;
@@ -85,7 +85,7 @@ template <class T> class Queue {
     if (0u == size_) {
       ++waiting_readers_;
       time_point_t start = wait_clock_t::now();
-      pop_guard_.wait(lock);
+      pop_guard_.wait(lock,[this]() { return 0u < this->size_;});
       if (block_duration)
         *block_duration = std::chrono::duration_cast<duration_t>(wait_clock_t::now() - start);
       --waiting_readers_;
@@ -98,11 +98,11 @@ template <class T> class Queue {
 
     if (0u < size_ && waiting_readers_) {
       lock.unlock();
-      pop_guard_.notify_all();
+      pop_guard_.notify_one();
     }
     else if (waiting_writers_) {
       lock.unlock();
-      push_guard_.notify_all();
+      push_guard_.notify_one();
     }
 
     return value;

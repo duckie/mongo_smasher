@@ -102,5 +102,57 @@ TEST_CASE("Single sized queue","[queue]") {
     REQUIRE(run_writers_readers(queue,1,1000,10));
   }
 
+  SECTION("Many writers many readers - Case 1") {
+    REQUIRE(run_writers_readers(queue,10,10000,10));
+  }
+
+  SECTION("Many writers many readers - Case 2") {
+    REQUIRE(run_writers_readers(queue,5,10000,10));
+  }
+
+  SECTION("Many writers many readers - Case 3") {
+    REQUIRE(run_writers_readers(queue,10,10000,5));
+  }
+}
+
+TEST_CASE("Multi sized queue","[queue]") {
+  Queue<Movable> queue { 10u };
+
+  REQUIRE(queue.size() == 0);
+
+  SECTION("Simple push/pop") {
+   Movable a;
+   queue.push(std::move(a));
+   REQUIRE(1 == queue.size()); 
+   REQUIRE(!a.is_valid());
+
+   Movable b = queue.pop();
+   REQUIRE(0 == queue.size());
+   REQUIRE(b.is_valid());
+  }
+
+  SECTION("One writer one reader") {
+    REQUIRE(run_writers_readers(queue,1,1000,1));
+  }
+
+  SECTION("Many writers one reader") {
+    REQUIRE(run_writers_readers(queue,10,1000,1));
+  }
+
+  SECTION("One writer many readers") {
+    REQUIRE(run_writers_readers(queue,1,1000,10));
+  }
+
+  SECTION("Many writers many readers - Case 1") {
+    REQUIRE(run_writers_readers(queue,10,10000,10));
+  }
+
+  SECTION("Many writers many readers - Case 2") {
+    REQUIRE(run_writers_readers(queue,5,10000,10));
+  }
+
+  SECTION("Many writers many readers - Case 3") {
+    REQUIRE(run_writers_readers(queue,10,10000,5));
+  }
 }
 
