@@ -21,6 +21,7 @@ include_directories(${PROJECT_SOURCE_DIR}/external/json_backbone/include)
 #endif()
 
 Find_Package(Threads REQUIRED)
+set(LIBRARIES "${LIBRARIES}" ${CMAKE_THREAD_LIBS_INIT})
 
 # MongoDB driver
 ExternalProject_Add(libcppformat
