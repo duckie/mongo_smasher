@@ -23,8 +23,8 @@ enum class key_category { simple, array };
 
 class ProcessingUnit {
   Randomizer& randomizer_;
-  CollectionHub& collections_;
-  mongocxx::collection& db_col_;
+  //CollectionHub& collections_;
+  //mongocxx::collection& db_col_;
   bsoncxx::stdx::string_view name_;
   bsoncxx::document::element model_;
   size_t nb_instances_{0u};
