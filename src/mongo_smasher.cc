@@ -21,6 +21,9 @@
 #include "collection_consumer.h"
 #include "collection_producer.h"
 #include <chrono>
+#include <thread>
+#include <sstream>
+#include <cppformat/format.h>
 
 using namespace std;
 namespace bsx = bsoncxx;
@@ -33,14 +36,15 @@ template <>
 typename enum_view_definition<frequency_type>::type
     enum_view_definition<frequency_type>::str_array = {"linear", "cyclic_gaussian", "sinusoidal"};
 
-CollectionHub::CollectionHub(std::string db_uri, std::string db_name)
-    : db_conn_{mongocxx::uri{db_uri}}, db_name_{db_name} {
+CollectionHub::CollectionHub(std::string db_uri)
+    : db_conn_{mongocxx::uri{db_uri}} {
 }
 
-mongocxx::collection& CollectionHub::operator[](std::string const& collection_name) {
-  auto col_it = collections_.find(collection_name);
+mongocxx::collection& CollectionHub::get_collection(std::string const& db_name, std::string const& collection_name) {
+  std::string full_name = fmt::format("{}/{}", collection_name, collection_name);
+  auto col_it = collections_.find(full_name);
   if (end(collections_) == col_it) {
-    col_it = collections_.emplace(collection_name, db_conn_[db_name_][collection_name]).first;
+    col_it = collections_.emplace(full_name, db_conn_[db_name][collection_name]).first;
   }
   return col_it->second;
 }
@@ -85,43 +89,61 @@ void run_stream(Config const& config) {
   }
 
   ThreadPilot pilot {};
-  DocumentBatch::queue_t queue {10000};
+  DocumentBatch::queue_t queue {10};
 
   // Create producers
-  std::vector<CollectionProducer> producers;
+  std::vector<std::thread> producers;
   producers.reserve(config.nb_producers);
   for(size_t i=0; i < config.nb_producers; ++i) {
-    producers.emplace_back(queue, view, 
+    producers.emplace_back([&pilot,&queue,&view,&root_path]() { 
+        CollectionProducer producer(pilot, queue,view,root_path.data());
+        producer.run();
+    });
   }
   
-
-  CollectionHub collections(db_uri, "test");
-  std::vector<ProcessingUnit> units;
-  // ProcessingUnit unit{randomizer, db_uri,
-  // view["collections"].get_document().view()};
-  for (auto collection_view : view["collections"].get_document().view()) {
-    log(log_level::debug, "Registering %s\n", collection_view.key().data());
-    units.emplace_back(randomizer, collections, collection_view.key(),
-                       collection_view.get_document().view());
+  std::vector<std::thread> consumers;
+  consumers.reserve(config.nb_consumers);
+  for(size_t i=0; i < config.nb_consumers; ++i) {
+    consumers.emplace_back([&pilot,&queue,&db_uri]() { 
+        CollectionConsumer consumer(pilot, queue, db_uri);
+        consumer.run();
+    });
   }
+
+  //CollectionHub collections(db_uri, "test");
+  for (auto& t : consumers) {
+    t.join();
+  }
+
+  for (auto& t : producers) {
+    t.join();
+  }
+  //std::vector<ProcessingUnit> units;
+  //// ProcessingUnit unit{randomizer, db_uri,
+  //// view["collections"].get_document().view()};
+  //for (auto collection_view : view["collections"].get_document().view()) {
+    //log(log_level::debug, "Registering %s\n", collection_view.key().data());
+    //units.emplace_back(randomizer, collections, collection_view.key(),
+                       //collection_view.get_document().view());
+  //}
 
   // Start a clock
-  auto start = std::chrono::high_resolution_clock::now();
-  for (;;) {
-    for (auto& unit : units) {
-      unit.process_tick();
-    }
-    auto stop = std::chrono::high_resolution_clock::now();
-    if (std::chrono::milliseconds(1000) < (stop - start)) {
-      // Update status line
-      std::ostringstream status_line;
-      for (auto& unit : units) {
-        status_line << unit.name() << '[' << unit.nb_inserted() << "] ";
-      }
-      log(log_level::info, "%s\n", status_line.str().c_str());
-      start = stop;
-    }
-  }
+  //auto start = std::chrono::high_resolution_clock::now();
+  //for (;;) {
+    //for (auto& unit : units) {
+      //unit.process_tick();
+    //}
+    //auto stop = std::chrono::high_resolution_clock::now();
+    //if (std::chrono::milliseconds(1000) < (stop - start)) {
+      //// Update status line
+      //std::ostringstream status_line;
+      //for (auto& unit : units) {
+        //status_line << unit.name() << '[' << unit.nb_inserted() << "] ";
+      //}
+      //log(log_level::info, "%s\n", status_line.str().c_str());
+      //start = stop;
+    //}
+  //}
   // static_assert(bsx::util::is_functor<std::function<void(bsoncxx::builder::stream::single_context)>&,void(bsx::builder::stream::single_context)>::value,
   // "Nope");
 };

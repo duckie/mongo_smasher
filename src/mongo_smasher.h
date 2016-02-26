@@ -36,16 +36,15 @@ struct enum_view_size<frequency_type> {
 
 class CollectionHub {
   mongocxx::client db_conn_;
-  std::string db_name_;
   std::map<std::string, mongocxx::collection> collections_;
 
  public:
-  CollectionHub(std::string db_uri, std::string db_name);
-  mongocxx::collection& operator[](std::string const& collection_name);
+  CollectionHub(std::string db_uri);
+  mongocxx::collection& get_collection(std::string const& db_name, std::string const& collection_name);
 };
 
 struct ThreadPilot {
-  std::atomic<bool> run = true;;
+  std::atomic<bool> run { true };
 };
 
 void run_stream(Config const& config);

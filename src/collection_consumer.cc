@@ -5,15 +5,16 @@
 
 namespace mongo_smasher {
 
-struct DocumentBatch {
-  using batch_t = std::vector<bsoncxx::builder::stream::document>;
-  using queue_t = Queue<DocumentBatch>;
+  CollectionConsumer::CollectionConsumer(ThreadPilot& pilot, typename DocumentBatch::queue_t& queue, std::string db_uri)
+    : pilot_{pilot}, queue_(queue), hub_{db_uri} 
+  {}
 
-  bsoncxx::stdx::string_view db_name;
-  bsoncxx::stdx::string_view db_col;
-  batch_t batch;
-};
-
-
-
+  void CollectionConsumer::run() {
+    while (pilot_.run) {
+      typename DocumentBatch::queue_t::duration_t idle_time;
+      auto batch = queue_.pop(&idle_time);
+      idle_time_ += idle_time.count();
+      hub_.get_collection(batch.db.to_string(), batch.col.to_string()).insert_many(batch.payload);
+    }
+  }
 }  // namespace mongo_smasher

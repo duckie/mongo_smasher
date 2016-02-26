@@ -6,13 +6,18 @@
 
 namespace mongo_smasher {
 class CollectionProducer {
-  typename DocumentBatch::queut_t& queue_;
+  typename DocumentBatch::queue_t& queue_;
+  ThreadPilot& pilot_;
   Randomizer randomizer_;
   bsoncxx::document::view model_;
+  std::atomic<size_t> idle_time_;
 
  public:
-  CollectionProducer(Queue<std::vector<bsoncxx::document::view>>& queue,
+  CollectionProducer(ThreadPilot& pilot,
+      typename DocumentBatch::queue_t& queue,
                      bsoncxx::document::view model, bsoncxx::stdx::string_view root_path);
+  CollectionProducer(CollectionProducer&&) = default;
+  CollectionProducer(CollectionProducer const&) = delete;
   void run();
 };
 }  // namespace mongo_smasher

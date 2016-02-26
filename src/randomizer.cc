@@ -3,6 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <regex>
+#include <cppformat/format.h>
 #include "logger.h"
 #include "utils.h"
 
@@ -167,9 +168,16 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
     }
 
     if (type == str_view("string")) {
-    } else if (type == str_view("int")) {
     }
-    if (type == str_view("pick")) {
+    else if (type == str_view("int")) {
+    }
+    else if (type == str_view("double")) {
+    }
+    else if (type == str_view("incremental_id")) {
+    }
+    else if (type == str_view("date")) {
+    }
+    else if (type == str_view("pick")) {
       // Is it a file ?
       auto file_it = value.find("file");
       if (file_it != value.end()) {
@@ -260,6 +268,7 @@ std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get
       throw exception();
     }
 
+      //log(log_level::error, fmt::format("Try {} => {}", type.data(), type == str_view("string")).data());
     if (type == str_view("string")) {
       int min = value["min_size"].get_int32();
       int max = value["max_size"].get_int32();

@@ -1,7 +1,7 @@
 #include "process_unit.h"
+#include "mongo_smasher.h"
 #include "logger.h"
 #include <mongocxx/pipeline.hpp>
-#include "mongo_smasher.h"
 
 namespace mongo_smasher {
 
@@ -9,17 +9,16 @@ namespace bsx = bsoncxx;
 
 namespace {}
 
-ProcessingUnit::ProcessingUnit(Randomizer &randomizer, CollectionHub &collections,
-                               bsx::stdx::string_view name,
+ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::queue_t& queue,
+                               bsoncxx::stdx::string_view name,
                                bsoncxx::document::view const &collection)
     : randomizer_{randomizer},
-      collections_{collections},
-      db_col_{collections[name.to_string()]},
+      queue_{queue},
+      //db_col_{collections[name.to_string()]},
       name_{name},
       model_(collection["schema"]),
       bulk_size_(to_int<size_t>(collection, "bulk_size", 1u)) {
   bulk_docs_.reserve(bulk_size_);
-  bulk_views_.reserve(bulk_size_);
 }
 
 auto ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) -> key_params & {
@@ -168,7 +167,7 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
   }
 }
 
-void ProcessingUnit::process_tick() {
+typename DocumentBatch::queue_t::duration_t ProcessingUnit::process_tick() {
   // auto db_collection = db_conn_["test"][name_];
   bsx::builder::stream::document document;
   for (auto value : model_.get_document().view()) {
@@ -176,17 +175,18 @@ void ProcessingUnit::process_tick() {
       process_element(value, document);
     } catch (exception e) {
       // TODO: Only catch failures due to foreign refs here
-      return;
+      return {};
     }
   }
-  bulk_docs_.emplace_back(std::move(document));
-  bulk_views_.emplace_back(bulk_docs_.back().view());
+  bulk_docs_.emplace_back(document.extract());
   if (bulk_size_ <= bulk_docs_.size()) {
-    db_col_.insert_many(bulk_views_);
+    //db_col_.insert_many(bulk_views_);
+    auto idle_time = queue_.push({bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
     nb_instances_ += bulk_size_;
     bulk_docs_.clear();
-    bulk_views_.clear();
+    return idle_time;
   }
+  return {};
 }
 
 bsx::stdx::string_view ProcessingUnit::name() const {

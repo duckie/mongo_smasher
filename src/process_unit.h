@@ -1,9 +1,11 @@
 #pragma once
-#include "randomizer.h"
 #include "queue.h"
+#include "randomizer.h"
+#include "collection_consumer.h"
 #include <mongocxx/client.hpp>
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
+#include <bsoncxx/document/value.hpp>
 #include <mongocxx/cursor.hpp>
 #include <regex>
 #include <map>
@@ -26,15 +28,14 @@ class ProcessingUnit {
   Randomizer& randomizer_;
   //CollectionHub& collections_;
   //mongocxx::collection& db_col_;
-  Queue<std::vector<bsoncxx::builder::stream::document>>& queue_;
+  typename DocumentBatch::queue_t& queue_;
   bsoncxx::stdx::string_view name_;
   bsoncxx::document::element model_;
   size_t nb_instances_{0u};
   double weight_{1.};
 
   size_t bulk_size_{1u};
-  std::vector<bsoncxx::builder::stream::document> bulk_docs_;
-  std::vector<bsoncxx::document::view> bulk_views_;
+  std::vector<bsoncxx::document::value> bulk_docs_;
   std::map<std::string, std::pair<mongocxx::cursor, typename mongocxx::cursor::iterator>>
       foreign_cursors_;
 
@@ -51,10 +52,11 @@ class ProcessingUnit {
                        bsoncxx::builder::stream::document& ctx);
 
  public:
-  using queue_t = Queue<std::vector<bsoncxx::builder::stream::document>>;
-  ProcessingUnit(Randomizer& randomizer, queue_t& queue,
+  ProcessingUnit(Randomizer& randomizer, typename DocumentBatch::queue_t& queue,
                  bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection);
-  void process_tick();
+
+  // Returns idle time
+  typename DocumentBatch::queue_t::duration_t process_tick();
   bsoncxx::stdx::string_view name() const;
   size_t nb_inserted() const;
 };

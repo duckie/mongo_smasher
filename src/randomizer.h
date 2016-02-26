@@ -28,6 +28,7 @@ class Randomizer {
 
  public:
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
+  Randomizer(Randomizer&&) = default;
   ~Randomizer() = default;
   std::mt19937& random_generator();
   RangeSizeGenerator& get_range_size_generator(bsoncxx::stdx::string_view range_expression);
