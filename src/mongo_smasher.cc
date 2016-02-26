@@ -18,6 +18,8 @@
 #include "logger.h"
 #include "randomizer.h"
 #include "process_unit.h"
+#include "collection_consumer.h"
+#include "collection_producer.h"
 #include <chrono>
 
 using namespace std;
@@ -34,6 +36,7 @@ typename enum_view_definition<frequency_type>::type
 CollectionHub::CollectionHub(std::string db_uri, std::string db_name)
     : db_conn_{mongocxx::uri{db_uri}}, db_name_{db_name} {
 }
+
 mongocxx::collection& CollectionHub::operator[](std::string const& collection_name) {
   auto col_it = collections_.find(collection_name);
   if (end(collections_) == col_it) {
@@ -75,12 +78,23 @@ void run_stream(Config const& config) {
   // TODO: Manage failures properly.
   std::string db_uri = fmt::format("mongodb://{}:{}", config.host, config.port);
   mongo_smasher::log(mongo_smasher::log_level::info, "Connecting to %s.\n", db_uri.c_str());
-
   // TODO add the logger here
   mongocxx::instance inst{};
   if (view["collections"].type() != bsx::type::k_document) {
     log(log_level::fatal, "what");
   }
+
+  ThreadPilot pilot {};
+  DocumentBatch::queue_t queue {10000};
+
+  // Create producers
+  std::vector<CollectionProducer> producers;
+  producers.reserve(config.nb_producers);
+  for(size_t i=0; i < config.nb_producers; ++i) {
+    producers.emplace_back(queue, view, 
+  }
+  
+
   CollectionHub collections(db_uri, "test");
   std::vector<ProcessingUnit> units;
   // ProcessingUnit unit{randomizer, db_uri,

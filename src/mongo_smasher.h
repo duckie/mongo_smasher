@@ -15,6 +15,7 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
 #include "utils.h"
+#include <atomic>
 
 namespace mongo_smasher {
 
@@ -22,7 +23,8 @@ struct Config {
   std::string model_file;
   std::string host;
   size_t port;
-  size_t threads;
+  size_t nb_producers;
+  size_t nb_consumers;
 };
 
 enum class frequency_type : size_t { linear, cyclic_gaussian, sinusoidal, FREQUENCY_TYPE_MAX };
@@ -40,6 +42,10 @@ class CollectionHub {
  public:
   CollectionHub(std::string db_uri, std::string db_name);
   mongocxx::collection& operator[](std::string const& collection_name);
+};
+
+struct ThreadPilot {
+  std::atomic<bool> run = true;;
 };
 
 void run_stream(Config const& config);

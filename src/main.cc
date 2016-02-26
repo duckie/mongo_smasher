@@ -23,11 +23,13 @@ int main(int argc, char *argv[]) {
 
   po::options_description desc("Allowed options");
   desc.add_options()("help", "produce help message")(
-      "host,h", po::value<string>(&config.host)->default_value("127.0.0.1"),
-      "")("port,p", po::value<size_t>(&config.port)->default_value(27017),
-          "")("threads,t", po::value<size_t>(&config.threads)->default_value(1),
-              "Number of threads")("model-file", po::value<vector<string>>(),
-                                   "Model file to use.")(
+      "host,h", po::value<string>(&config.host)->default_value("127.0.0.1"), "")(
+      "port,p", po::value<size_t>(&config.port)->default_value(27017), "")(
+      "producers,t", po::value<size_t>(&config.nb_producers)->default_value(1),
+      "Number of document producers threads")(
+      "consumers,c", po::value<size_t>(&config.nb_consumers)->default_value(1),
+      "Number of database connection threads")("model-file", po::value<vector<string>>(),
+                                               "Model file to use.")(
       "verbosity,v", po::value<string>()->default_value("info"),
       "Verbosity of the output (debug,info,warning,error,fatal or quiet)");
 
@@ -35,9 +37,7 @@ int main(int argc, char *argv[]) {
   p.add("model-file", -1);
 
   po::variables_map vm;
-  po::store(
-      po::command_line_parser(argc, argv).options(desc).positional(p).run(),
-      vm);
+  po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
   po::notify(vm);
 
   if (vm.count("help")) {

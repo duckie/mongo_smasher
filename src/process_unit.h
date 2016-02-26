@@ -1,5 +1,6 @@
 #pragma once
 #include "randomizer.h"
+#include "queue.h"
 #include <mongocxx/client.hpp>
 #include <bsoncxx/builder/stream/array.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
@@ -25,6 +26,7 @@ class ProcessingUnit {
   Randomizer& randomizer_;
   //CollectionHub& collections_;
   //mongocxx::collection& db_col_;
+  Queue<std::vector<bsoncxx::builder::stream::document>>& queue_;
   bsoncxx::stdx::string_view name_;
   bsoncxx::document::element model_;
   size_t nb_instances_{0u};
@@ -49,7 +51,8 @@ class ProcessingUnit {
                        bsoncxx::builder::stream::document& ctx);
 
  public:
-  ProcessingUnit(Randomizer& randomizer, CollectionHub& collections,
+  using queue_t = Queue<std::vector<bsoncxx::builder::stream::document>>;
+  ProcessingUnit(Randomizer& randomizer, queue_t& queue,
                  bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection);
   void process_tick();
   bsoncxx::stdx::string_view name() const;

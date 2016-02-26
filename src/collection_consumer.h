@@ -18,6 +18,6 @@ class CollectionConsumer {
 
 public:
   CollectionConsumer(std::string db_uri);
-}
+};
 
 }  // namespace mongo_smasher
