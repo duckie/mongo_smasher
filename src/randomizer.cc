@@ -246,7 +246,7 @@ RangeSizeGenerator &Randomizer::get_range_size_generator(
   return *gen_it->second;
 }
 
-std::mt19937 &Randomizer::random_generator() {
+auto Randomizer::random_generator() -> random_engine_t& {
   return gen_;
 }
 

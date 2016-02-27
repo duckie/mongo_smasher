@@ -34,7 +34,6 @@ using bsoncxx::stdx::make_unique;
 
 namespace mongo_smasher {
 
-
 template <>
 typename enum_view_definition<frequency_type>::type
     enum_view_definition<frequency_type>::str_array = {"linear", "cyclic_gaussian", "sinusoidal"};
@@ -78,32 +77,34 @@ void run_stream(Config const& config) {
     log(log_level::fatal, "what");
   }
 
-  ThreadPilot pilot {};
-  DocumentBatch::queue_t queue {100};
+  ThreadPilot pilot{};
+  DocumentBatch::queue_t queue{100};
 
   // Create producers
   std::list<ThreadRunner<CollectionProducer>> producers;
-  for(size_t i=0; i < config.nb_producers; ++i) {
-    producers.emplace_back(pilot, queue,view,root_path.data());
+  for (size_t i = 0; i < config.nb_producers; ++i) {
+    producers.emplace_back(pilot, queue, view, root_path.data());
   }
-  
+
   std::list<ThreadRunner<CollectionConsumer>> consumers;
-  for(size_t i=0; i < config.nb_consumers; ++i) {
+  for (size_t i = 0; i < config.nb_consumers; ++i) {
     consumers.emplace_back(pilot, queue, db_uri);
   }
 
-
   for (;;) {
-    size_t producers_idle {0};
+    size_t producers_idle{0};
     for (auto& t : producers) {
       producers_idle += t.hosted.measure_idle_time();
     }
-    size_t consumers_idle {0};
+    size_t consumers_idle{0};
     for (auto& t : consumers) {
-     consumers_idle += t.hosted.measure_idle_time(); 
+      consumers_idle += t.hosted.measure_idle_time();
     }
-    log(log_level::info, "Producers idle: %lu, consumers idle: %lu, queue size: %lu\n", producers_idle, consumers_idle, queue.size());
-    std::this_thread::sleep_for(std::chrono::seconds {1});
+
+    constexpr size_t const us_per_ms = 1e3;  // microseconds per milliseconds
+    log(log_level::info, "Producers idle: %4lums, consumers idle: %4lums, queue size: %lu\n",
+        producers_idle / us_per_ms, consumers_idle / us_per_ms, queue.size());
+    std::this_thread::sleep_for(std::chrono::seconds{1});
   }
 
   for (auto& t : consumers) {
@@ -113,34 +114,6 @@ void run_stream(Config const& config) {
   for (auto& t : producers) {
     t.thread.join();
   }
-  //std::vector<ProcessingUnit> units;
-  //// ProcessingUnit unit{randomizer, db_uri,
-  //// view["collections"].get_document().view()};
-  //for (auto collection_view : view["collections"].get_document().view()) {
-    //log(log_level::debug, "Registering %s\n", collection_view.key().data());
-    //units.emplace_back(randomizer, collections, collection_view.key(),
-                       //collection_view.get_document().view());
-  //}
-
-  // Start a clock
-  //auto start = std::chrono::high_resolution_clock::now();
-  //for (;;) {
-    //for (auto& unit : units) {
-      //unit.process_tick();
-    //}
-    //auto stop = std::chrono::high_resolution_clock::now();
-    //if (std::chrono::milliseconds(1000) < (stop - start)) {
-      //// Update status line
-      //std::ostringstream status_line;
-      //for (auto& unit : units) {
-        //status_line << unit.name() << '[' << unit.nb_inserted() << "] ";
-      //}
-      //log(log_level::info, "%s\n", status_line.str().c_str());
-      //start = stop;
-    //}
-  //}
-  // static_assert(bsx::util::is_functor<std::function<void(bsoncxx::builder::stream::single_context)>&,void(bsx::builder::stream::single_context)>::value,
-  // "Nope");
 };
 
 }  // namespace mongo_smasher

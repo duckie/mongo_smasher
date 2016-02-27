@@ -16,9 +16,13 @@ struct RangeSizeGenerator {
 };
 
 class Randomizer {
+ public:
+  using random_engine_t = std::minstd_rand;
+
+ private:
   bsoncxx::document::view values_;
   std::random_device rd_;
-  mutable std::mt19937 gen_;
+  mutable random_engine_t gen_;
   boost::filesystem::path system_root_path_;
 
   std::map<std::string, std::unique_ptr<RangeSizeGenerator>> range_size_generators_;
@@ -30,7 +34,7 @@ class Randomizer {
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
   Randomizer(Randomizer&&) = default;
   ~Randomizer() = default;
-  std::mt19937& random_generator();
+  random_engine_t& random_generator();
   RangeSizeGenerator& get_range_size_generator(bsoncxx::stdx::string_view range_expression);
   std::function<void(bsoncxx::builder::stream::single_context)> const& get_value_pusher(
       bsoncxx::stdx::string_view col_name, bsoncxx::stdx::string_view name);

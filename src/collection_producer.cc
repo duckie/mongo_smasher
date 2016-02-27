@@ -32,6 +32,7 @@ void CollectionProducer::run() {
     for (auto& unit : units) {
       idle_time += unit.process_tick();
     }
+    idle_time_ += idle_time.count();
   }
 }
 
