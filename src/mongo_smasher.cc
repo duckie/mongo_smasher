@@ -24,30 +24,20 @@
 #include <thread>
 #include <sstream>
 #include <cppformat/format.h>
+#include <iostream>
 
 using namespace std;
+
 namespace bsx = bsoncxx;
 using str_view = bsoncxx::stdx::string_view;
 using bsoncxx::stdx::make_unique;
 
 namespace mongo_smasher {
 
+
 template <>
 typename enum_view_definition<frequency_type>::type
     enum_view_definition<frequency_type>::str_array = {"linear", "cyclic_gaussian", "sinusoidal"};
-
-CollectionHub::CollectionHub(std::string db_uri)
-    : db_conn_{mongocxx::uri{db_uri}} {
-}
-
-mongocxx::collection& CollectionHub::get_collection(std::string const& db_name, std::string const& collection_name) {
-  std::string full_name = fmt::format("{}/{}", collection_name, collection_name);
-  auto col_it = collections_.find(full_name);
-  if (end(collections_) == col_it) {
-    col_it = collections_.emplace(full_name, db_conn_[db_name][collection_name]).first;
-  }
-  return col_it->second;
-}
 
 void run_stream(Config const& config) {
   // Load the file
@@ -89,34 +79,39 @@ void run_stream(Config const& config) {
   }
 
   ThreadPilot pilot {};
-  DocumentBatch::queue_t queue {10};
+  DocumentBatch::queue_t queue {100};
 
   // Create producers
-  std::vector<std::thread> producers;
-  producers.reserve(config.nb_producers);
+  std::list<ThreadRunner<CollectionProducer>> producers;
   for(size_t i=0; i < config.nb_producers; ++i) {
-    producers.emplace_back([&pilot,&queue,&view,&root_path]() { 
-        CollectionProducer producer(pilot, queue,view,root_path.data());
-        producer.run();
-    });
+    producers.emplace_back(pilot, queue,view,root_path.data());
   }
   
-  std::vector<std::thread> consumers;
-  consumers.reserve(config.nb_consumers);
+  std::list<ThreadRunner<CollectionConsumer>> consumers;
   for(size_t i=0; i < config.nb_consumers; ++i) {
-    consumers.emplace_back([&pilot,&queue,&db_uri]() { 
-        CollectionConsumer consumer(pilot, queue, db_uri);
-        consumer.run();
-    });
+    consumers.emplace_back(pilot, queue, db_uri);
   }
 
-  //CollectionHub collections(db_uri, "test");
+
+  for (;;) {
+    size_t producers_idle {0};
+    for (auto& t : producers) {
+      producers_idle += t.hosted.measure_idle_time();
+    }
+    size_t consumers_idle {0};
+    for (auto& t : consumers) {
+     consumers_idle += t.hosted.measure_idle_time(); 
+    }
+    log(log_level::info, "Producers idle: %lu, consumers idle: %lu, queue size: %lu\n", producers_idle, consumers_idle, queue.size());
+    std::this_thread::sleep_for(std::chrono::seconds {1});
+  }
+
   for (auto& t : consumers) {
-    t.join();
+    t.thread.join();
   }
 
   for (auto& t : producers) {
-    t.join();
+    t.thread.join();
   }
   //std::vector<ProcessingUnit> units;
   //// ProcessingUnit unit{randomizer, db_uri,

@@ -16,6 +16,7 @@
 #include <mongocxx/instance.hpp>
 #include "utils.h"
 #include <atomic>
+#include <thread>
 
 namespace mongo_smasher {
 
@@ -34,17 +35,18 @@ struct enum_view_size<frequency_type> {
   static constexpr size_t const value = static_cast<size_t>(frequency_type::FREQUENCY_TYPE_MAX);
 };
 
-class CollectionHub {
-  mongocxx::client db_conn_;
-  std::map<std::string, mongocxx::collection> collections_;
-
- public:
-  CollectionHub(std::string db_uri);
-  mongocxx::collection& get_collection(std::string const& db_name, std::string const& collection_name);
+struct ThreadPilot {
+  std::atomic<bool> run{true};
 };
 
-struct ThreadPilot {
-  std::atomic<bool> run { true };
+template <class T>
+struct ThreadRunner {
+  T hosted;
+  std::thread thread;
+  template <class... Args>
+  ThreadRunner(Args&&... args)
+      : hosted{std::forward<Args>(args)...}, thread{[this]() -> void { this->hosted.run(); }} {
+  }
 };
 
 void run_stream(Config const& config);

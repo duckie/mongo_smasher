@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <mutex>
@@ -13,7 +14,7 @@ namespace mongo_smasher {
 // This queue is used to dispatch the produced documents to
 // the writer threads.
 template <class T> class Queue {
-  size_t size_ { 0u };
+  std::atomic<size_t> size_ { 0u };
   size_t max_size_ { 100000u };
   size_t waiting_readers_ {0};
   size_t waiting_writers_ {0};
@@ -23,7 +24,7 @@ template <class T> class Queue {
   std::queue<T> values_;
 
  public:
-  using duration_t = std::chrono::duration<size_t>;
+  using duration_t = std::chrono::microseconds;
   using wait_clock_t = std::chrono::high_resolution_clock;
   using time_point_t = std::chrono::time_point<wait_clock_t>;
 
@@ -32,7 +33,6 @@ template <class T> class Queue {
   Queue(Queue&&) = default;
 
   size_t size() const {
-    std::lock_guard<std::mutex> lock(main_lock_);
     return size_;
   }
 
