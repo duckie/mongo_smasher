@@ -21,7 +21,7 @@ ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::q
   bulk_docs_.reserve(bulk_size_);
 }
 
-auto ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) -> key_params & {
+KeyParams& ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   auto key_it = key_params_.find(key);
   if (end(key_params_) == key_it) {
     if (']' == key.back()) {
@@ -33,7 +33,7 @@ auto ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) -> key_param
         if (generator) {
           auto insert_result = key_params_.emplace(
               key,
-              key_params{key_category::array, key.substr(0, range_start).to_string(), generator});
+              KeyParams{key_category::array, key.substr(0, range_start).to_string(), generator, 1.});
           return insert_result.first->second;
         }
       } catch (exception e) {
@@ -43,7 +43,7 @@ auto ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) -> key_param
 
     // Inserts a simple key
     auto insert_result =
-        key_params_.emplace(key, key_params{key_category::simple, key.to_string(), nullptr});
+        key_params_.emplace(key, KeyParams{key_category::simple, key.to_string(), nullptr, 1.});
     return insert_result.first->second;
   }
   return key_it->second;
@@ -127,13 +127,13 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::document &ctx) {
   auto key = element.key();
   auto key_type = get_key_params(key);
-  if (key_category::array == std::get<0>(key_type)) {
+  if (key_category::array == key_type.category) {
     bsx::builder::stream::array child;
-    auto array_size = std::get<2>(key_type)->generate_size();
+    auto array_size = key_type.range_size_generator->generate_size();
     for (size_t index = 0; index < array_size; ++index) {
       process_element(element, child);
     }
-    ctx << std::get<1>(key_type) << bsx::types::b_array{child.view()};
+    ctx << key_type.name << bsx::types::b_array{child.view()};
   } else {
     if (element.type() == bsx::type::k_utf8) {
       auto value = to_str_view(element);

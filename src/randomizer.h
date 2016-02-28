@@ -24,6 +24,7 @@ class Randomizer {
   std::random_device rd_;
   mutable random_engine_t gen_;
   boost::filesystem::path system_root_path_;
+  std::uniform_real_distribution<double> key_existence_ {0.,1.};
 
   std::map<std::string, std::unique_ptr<RangeSizeGenerator>> range_size_generators_;
   std::map<bsoncxx::stdx::string_view, std::vector<std::string>> value_lists_;
@@ -36,6 +37,7 @@ class Randomizer {
   ~Randomizer() = default;
   random_engine_t& random_generator();
   RangeSizeGenerator& get_range_size_generator(bsoncxx::stdx::string_view range_expression);
+  double existence_draw();
   std::function<void(bsoncxx::builder::stream::single_context)> const& get_value_pusher(
       bsoncxx::stdx::string_view col_name, bsoncxx::stdx::string_view name);
 };

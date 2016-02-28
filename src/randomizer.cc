@@ -250,6 +250,10 @@ auto Randomizer::random_generator() -> random_engine_t& {
   return gen_;
 }
 
+double Randomizer::existence_draw() {
+  return key_existence_(gen_);
+}
+
 std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get_value_pusher(
     str_view col_name, str_view name) {
   namespace bsx = bsoncxx;

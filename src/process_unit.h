@@ -24,6 +24,13 @@ struct Collection {
 
 enum class key_category { simple, array };
 
+struct KeyParams {
+  key_category category;
+  std::string name;
+  RangeSizeGenerator* range_size_generator;
+  double probability;
+};
+
 class ProcessingUnit {
   Randomizer& randomizer_;
   //CollectionHub& collections_;
@@ -40,9 +47,9 @@ class ProcessingUnit {
       foreign_cursors_;
 
   using key_params = std::tuple<key_category, std::string, RangeSizeGenerator*>;
-  std::map<bsoncxx::stdx::string_view, key_params> key_params_;
+  std::map<bsoncxx::stdx::string_view, KeyParams> key_params_;
 
-  key_params& get_key_params(bsoncxx::stdx::string_view key);
+  KeyParams& get_key_params(bsoncxx::stdx::string_view key);
   // bsoncxx::document::view get_foreign_view(bsoncxx::stdx::string_view foreign_name);
   void process_element(bsoncxx::array::element const& element,
                        bsoncxx::builder::stream::array& ctx);
