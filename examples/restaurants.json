@@ -23,8 +23,8 @@
           "zipcode":"$nyzip"
         },
         "borough":"$borough",
-        "cuisine":"$cuisine",
-        "grades[0:15]":{
+        "cuisine?0.7":"$cuisine",
+        "grades[0:4]":{
           "date":"$grade_date",
           "grade":"$grade",
           "score":"$score"
@@ -33,7 +33,7 @@
         "restaurant_id":"$id"
       },
       "weight":1.0,
-      "bulk_size":1000
+      "bulk_size":1
     }
   }
 }

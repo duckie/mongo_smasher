@@ -2,6 +2,7 @@
 #include "mongo_smasher.h"
 #include "logger.h"
 #include <mongocxx/pipeline.hpp>
+#include <sstream>
 
 namespace mongo_smasher {
 
@@ -23,17 +24,35 @@ ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::q
 
 KeyParams& ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   auto key_it = key_params_.find(key);
+  auto key_name = key;
   if (end(key_params_) == key_it) {
-    if (']' == key.back()) {
+
+    // Read proba
+    double probability {1.};
+    auto probability_pos = key.find_last_of('?');
+    if (probability_pos != bsx::stdx::string_view::npos) {
+      std::istringstream probability_value(key.substr(probability_pos+1).to_string());
+      key_name = key.substr(0, probability_pos);
+      double probability_read;
+      if (probability_value >> probability_read)
+        probability = probability_read;
+    }
+    if (probability < 0.)
+      probability = 0.;
+    if (1. < probability)
+      probability = 1.;
+
+    // Read array
+    auto range_end = key.find_last_of(']');
+    if (range_end != bsx::stdx::string_view::npos) {
       auto range_start = key.find_last_of('[');
-      auto range_end = key.find_last_of(']');
       std::string range_expr = key.substr(range_start + 1, range_end - range_start - 1).to_string();
       try {
         RangeSizeGenerator *generator = &randomizer_.get_range_size_generator(range_expr);
         if (generator) {
           auto insert_result = key_params_.emplace(
               key,
-              KeyParams{key_category::array, key.substr(0, range_start).to_string(), generator, 1.});
+              KeyParams{key_category::array, key.substr(0, range_start).to_string(), generator, probability});
           return insert_result.first->second;
         }
       } catch (exception e) {
@@ -42,8 +61,9 @@ KeyParams& ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
     }
 
     // Inserts a simple key
+    log(log_level::debug, "Extracting simple key name \"%s\"\n", key_name.to_string().c_str());
     auto insert_result =
-        key_params_.emplace(key, KeyParams{key_category::simple, key.to_string(), nullptr, 1.});
+        key_params_.emplace(key, KeyParams{key_category::simple, key_name.to_string(), nullptr, probability});
     return insert_result.first->second;
   }
   return key_it->second;
@@ -125,44 +145,53 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
 
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::document &ctx) {
-  auto key = element.key();
+  auto const& key = element.key();
   auto key_type = get_key_params(key);
-  if (key_category::array == key_type.category) {
-    bsx::builder::stream::array child;
-    auto array_size = key_type.range_size_generator->generate_size();
-    for (size_t index = 0; index < array_size; ++index) {
-      process_element(element, child);
-    }
-    ctx << key_type.name << bsx::types::b_array{child.view()};
-  } else {
-    if (element.type() == bsx::type::k_utf8) {
-      auto value = to_str_view(element);
-      // First stage are statments over the key
-      if ('$' == value[0]) {
-        ctx << element.key() << randomizer_.get_value_pusher(name_, value.substr(1));
-      }
-      // TODO: References to foreign table disabled for now
-      // else if ('&' == value[0]) {
-      // try {
-      // ctx << element.key() << bsx::types::b_document{get_foreign_view(value.substr(1))};
-      //}
-      // catch(exception e) {
-      //// Retrhow
-      // throw e;
-      //}
-      //}
-    } else if (element.type() == bsx::type::k_document) {
-      bsx::builder::stream::document child;
-      for (auto value : element.get_document().view()) {
-        process_element(value, child);
-      }
-      ctx << element.key() << bsx::types::b_document{child.view()};
-    } else if (element.type() == bsx::type::k_array) {
+
+  // Check if key should be inserted
+  bool insert = true;
+  if (key_type.probability < 1.) {
+    insert = (randomizer_.existence_draw() <= key_type.probability);
+  }
+
+  if (insert) {
+    if (key_category::array == key_type.category) {
       bsx::builder::stream::array child;
-      for (auto value : element.get_array().value) {
-        process_element(value, child);
+      auto array_size = key_type.range_size_generator->generate_size();
+      for (size_t index = 0; index < array_size; ++index) {
+        process_element(element, child);
       }
-      ctx << element.key() << bsx::types::b_array{child.view()};
+      ctx << key_type.name << bsx::types::b_array{child.view()};
+    } else {
+      if (element.type() == bsx::type::k_utf8) {
+        auto value = to_str_view(element);
+        // First stage are statments over the key
+        if ('$' == value[0]) {
+          ctx << key_type.name << randomizer_.get_value_pusher(name_, value.substr(1));
+        }
+        // TODO: References to foreign table disabled for now
+        // else if ('&' == value[0]) {
+        // try {
+        // ctx << element.key() << bsx::types::b_document{get_foreign_view(value.substr(1))};
+        //}
+        // catch(exception e) {
+        //// Retrhow
+        // throw e;
+        //}
+        //}
+      } else if (element.type() == bsx::type::k_document) {
+        bsx::builder::stream::document child;
+        for (auto value : element.get_document().view()) {
+          process_element(value, child);
+        }
+        ctx << element.key() << bsx::types::b_document{child.view()};
+      } else if (element.type() == bsx::type::k_array) {
+        bsx::builder::stream::array child;
+        for (auto value : element.get_array().value) {
+          process_element(value, child);
+        }
+        ctx << element.key() << bsx::types::b_array{child.view()};
+      }
     }
   }
 }
