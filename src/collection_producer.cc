@@ -1,6 +1,9 @@
 #include "collection_producer.h"
 #include "logger.h"
 
+using namespace bsoncxx::stdx;
+using namespace bsoncxx;
+
 namespace mongo_smasher {
 
 CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_t& queue,
@@ -19,12 +22,26 @@ CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_
 
 void CollectionProducer::run() {
   std::vector<ProcessingUnit> units;
-  // ProcessingUnit unit{randomizer, db_uri,
-  // auto view = model_["collections"].get_document().view();
-  for (auto collection_view : model_["collections"].get_document().view()) {
-    log(log_level::debug, "Registering %s\n", collection_view.key().data());
-    units.emplace_back(randomizer_, queue_, collection_view.key(),
-                       collection_view.get_document().view());
+
+  // Compute weight ratio to apply
+  double max_weight{0.};
+  std::map<string_view, double> weights;
+  for (auto collection_element : model_["collections"].get_document().view()) {
+    double weight{1.};
+    auto collection_view = collection_element.get_document().view();
+    auto weight_it = collection_view.find("weight");
+    if (weight_it != collection_view.end() && weight_it->type() == type::k_double)
+      weight = weight_it->get_double().value;
+    if (weight < 0.) weight = 0.;
+    if (max_weight < weight) max_weight = weight;
+    weights.emplace(collection_element.key(), weight);
+  }
+
+  for (auto collection_element : model_["collections"].get_document().view()) {
+    log(log_level::debug, "Registering %s\n", collection_element.key().data());
+    units.emplace_back(randomizer_, queue_, collection_element.key(),
+                       collection_element.get_document().view(),
+                       weights[collection_element.key()] / max_weight);
   }
 
   while (pilot_.run) {

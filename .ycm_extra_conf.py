@@ -86,10 +86,9 @@ with open('%s/BuildConfig.json' % DirectoryOfThisScript()) as build_config_file:
     json_data = json.load(build_config_file)
     compilation_database_folder = json_data['rtp'].encode('ascii','replace')
 
+database = None
 if os.path.exists( compilation_database_folder ):
   database = ycm_core.CompilationDatabase( compilation_database_folder )
-else:
-  database = None
 
 SOURCE_EXTENSIONS = [ '.cpp', '.cxx', '.cc', '.c', '.m', '.mm' ]
 

@@ -33,8 +33,8 @@ struct KeyParams {
 
 class ProcessingUnit {
   Randomizer& randomizer_;
-  //CollectionHub& collections_;
-  //mongocxx::collection& db_col_;
+  // CollectionHub& collections_;
+  // mongocxx::collection& db_col_;
   typename DocumentBatch::queue_t& queue_;
   bsoncxx::stdx::string_view name_;
   bsoncxx::document::element model_;
@@ -60,7 +60,8 @@ class ProcessingUnit {
 
  public:
   ProcessingUnit(Randomizer& randomizer, typename DocumentBatch::queue_t& queue,
-                 bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection);
+                 bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection,
+                 double normalized_weight);
 
   // Returns idle time
   typename DocumentBatch::queue_t::duration_t process_tick();

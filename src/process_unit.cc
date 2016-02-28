@@ -10,37 +10,33 @@ namespace bsx = bsoncxx;
 
 namespace {}
 
-ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::queue_t& queue,
+ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &queue,
                                bsoncxx::stdx::string_view name,
-                               bsoncxx::document::view const &collection)
+                               bsoncxx::document::view const &collection, double normalized_weight)
     : randomizer_{randomizer},
       queue_{queue},
-      //db_col_{collections[name.to_string()]},
       name_{name},
-      model_(collection["schema"]),
-      bulk_size_(to_int<size_t>(collection, "bulk_size", 1u)) {
+      model_{collection["schema"]},
+      weight_{normalized_weight},
+      bulk_size_{to_int<size_t>(collection, "bulk_size", 1u)} {
   bulk_docs_.reserve(bulk_size_);
 }
 
-KeyParams& ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
+KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   auto key_it = key_params_.find(key);
   auto key_name = key;
   if (end(key_params_) == key_it) {
-
     // Read proba
-    double probability {1.};
+    double probability{1.};
     auto probability_pos = key.find_last_of('?');
     if (probability_pos != bsx::stdx::string_view::npos) {
-      std::istringstream probability_value(key.substr(probability_pos+1).to_string());
+      std::istringstream probability_value(key.substr(probability_pos + 1).to_string());
       key_name = key.substr(0, probability_pos);
       double probability_read;
-      if (probability_value >> probability_read)
-        probability = probability_read;
+      if (probability_value >> probability_read) probability = probability_read;
     }
-    if (probability < 0.)
-      probability = 0.;
-    if (1. < probability)
-      probability = 1.;
+    if (probability < 0.) probability = 0.;
+    if (1. < probability) probability = 1.;
 
     // Read array
     auto range_end = key.find_last_of(']');
@@ -51,8 +47,8 @@ KeyParams& ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
         RangeSizeGenerator *generator = &randomizer_.get_range_size_generator(range_expr);
         if (generator) {
           auto insert_result = key_params_.emplace(
-              key,
-              KeyParams{key_category::array, key.substr(0, range_start).to_string(), generator, probability});
+              key, KeyParams{key_category::array, key.substr(0, range_start).to_string(), generator,
+                             probability});
           return insert_result.first->second;
         }
       } catch (exception e) {
@@ -62,8 +58,8 @@ KeyParams& ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
 
     // Inserts a simple key
     log(log_level::debug, "Extracting simple key name \"%s\"\n", key_name.to_string().c_str());
-    auto insert_result =
-        key_params_.emplace(key, KeyParams{key_category::simple, key_name.to_string(), nullptr, probability});
+    auto insert_result = key_params_.emplace(
+        key, KeyParams{key_category::simple, key_name.to_string(), nullptr, probability});
     return insert_result.first->second;
   }
   return key_it->second;
@@ -145,7 +141,7 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
 
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::document &ctx) {
-  auto const& key = element.key();
+  auto const &key = element.key();
   auto key_type = get_key_params(key);
 
   // Check if key should be inserted
@@ -197,23 +193,24 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
 }
 
 typename DocumentBatch::queue_t::duration_t ProcessingUnit::process_tick() {
-  // auto db_collection = db_conn_["test"][name_];
-  bsx::builder::stream::document document;
-  for (auto value : model_.get_document().view()) {
-    try {
-      process_element(value, document);
-    } catch (exception e) {
-      // TODO: Only catch failures due to foreign refs here
-      return {};
+  if (1. <= weight_ || randomizer_.existence_draw() <= weight_) {
+    bsx::builder::stream::document document;
+    for (auto value : model_.get_document().view()) {
+      try {
+        process_element(value, document);
+      } catch (exception e) {
+        // TODO: Only catch failures due to foreign refs here
+        return {};
+      }
     }
-  }
-  bulk_docs_.emplace_back(document.extract());
-  if (bulk_size_ <= bulk_docs_.size()) {
-    //db_col_.insert_many(bulk_views_);
-    auto idle_time = queue_.push({bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
-    nb_instances_ += bulk_size_;
-    bulk_docs_.clear();
-    return idle_time;
+    bulk_docs_.emplace_back(document.extract());
+    if (bulk_size_ <= bulk_docs_.size()) {
+      // db_col_.insert_many(bulk_views_);
+      auto idle_time = queue_.push({bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
+      nb_instances_ += bulk_size_;
+      bulk_docs_.clear();
+      return idle_time;
+    }
   }
   return {};
 }
