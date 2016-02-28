@@ -50,7 +50,6 @@ class ProcessingUnit {
   std::map<bsoncxx::stdx::string_view, KeyParams> key_params_;
 
   KeyParams& get_key_params(bsoncxx::stdx::string_view key);
-  // bsoncxx::document::view get_foreign_view(bsoncxx::stdx::string_view foreign_name);
   void process_element(bsoncxx::array::element const& element,
                        bsoncxx::builder::stream::array& ctx);
   void process_element(bsoncxx::document::element const& element,

@@ -254,7 +254,7 @@ double Randomizer::existence_draw() {
   return key_existence_(gen_);
 }
 
-std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get_value_pusher(
+ValuePusher& Randomizer::get_value_pusher(
     str_view col_name, str_view name) {
   namespace bsx = bsoncxx;
   using bsx::document::view;
@@ -311,7 +311,7 @@ std::function<void(bsx::builder::stream::single_context)> const &Randomizer::get
     }
   }
 
-  return value_pusher_it->second->get_pusher();
+  return *value_pusher_it->second;
 }
 
 }  // namespace mongo_smasher

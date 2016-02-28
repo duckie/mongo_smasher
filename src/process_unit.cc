@@ -65,53 +65,13 @@ KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   return key_it->second;
 }
 
-// TODO: Does not work, dunno why for now
-// bsoncxx::document::view ProcessingUnit::get_foreign_view(bsoncxx::stdx::string_view foreign_name)
-// {
-// auto cursors_it = foreign_cursors_.find(foreign_name.to_string());
-//// If the curosr does not exist or is expired, lets renew it
-// if (end(foreign_cursors_) == cursors_it || cursors_it->second.second ==
-// cursors_it->second.first.end()) {
-// int step = 1;
-// log(log_level::debug, "Aggregagte step %d\n", step++);
-// auto foreign_col = collections_[foreign_name.to_string()];
-// auto new_cursor = foreign_col.aggregate(mongocxx::pipeline().sample(1));
-//
-// if (std::begin(new_cursor) != std::end(new_cursor)) {
-// log(log_level::debug, "Aggregagte step %d\n", step++);
-// if (end(foreign_cursors_) != cursors_it) {
-// log(log_level::debug, "Aggregagte erase step %d\n", step++);
-// foreign_cursors_.erase(cursors_it);
-//}
-//
-// auto inserted_cursor_result = foreign_cursors_.emplace(foreign_name.to_string(),
-// std::make_pair(std::move(new_cursor), new_cursor.begin()));
-// log(log_level::debug, "Aggregagte step %d\n", step++);
-// if (inserted_cursor_result.second) {
-// log(log_level::debug, "Aggregagte step %d\n", step++);
-// auto& inserted_cursor = inserted_cursor_result.first;
-// inserted_cursor->second.second = inserted_cursor->second.first.begin();
-// auto view = *inserted_cursor->second.first.begin();
-////auto view = *inserted_cursor->second.second;
-////++(inserted_cursor->second.second);
-// return view;
-//}
-//}
-// throw exception();
-//}
-//
-// auto view = *cursors_it->second.second;
-//++cursors_it->second.second;
-// return view;
-//}
-
 void ProcessingUnit::process_element(bsoncxx::array::element const &element,
                                      bsx::builder::stream::array &ctx) {
   if (element.type() == bsx::type::k_utf8) {
     auto value = to_str_view(element);
     // First stage are statements over the key
     if ('$' == value[0]) {
-      ctx << randomizer_.get_value_pusher(name_, value.substr(1));
+      ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
     }
   } else if (element.type() == bsx::type::k_document) {
     bsx::builder::stream::document child;
@@ -128,7 +88,7 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
     auto value = to_str_view(element);
     // First stage are statements over the key
     if ('$' == value[0]) {
-      ctx << randomizer_.get_value_pusher(name_, value.substr(1));
+      ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
     }
   } else if (element.type() == bsx::type::k_document) {
     bsx::builder::stream::document child;
@@ -163,18 +123,8 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
         auto value = to_str_view(element);
         // First stage are statments over the key
         if ('$' == value[0]) {
-          ctx << key_type.name << randomizer_.get_value_pusher(name_, value.substr(1));
+          ctx << key_type.name << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
         }
-        // TODO: References to foreign table disabled for now
-        // else if ('&' == value[0]) {
-        // try {
-        // ctx << element.key() << bsx::types::b_document{get_foreign_view(value.substr(1))};
-        //}
-        // catch(exception e) {
-        //// Retrhow
-        // throw e;
-        //}
-        //}
       } else if (element.type() == bsx::type::k_document) {
         bsx::builder::stream::document child;
         for (auto value : element.get_document().view()) {

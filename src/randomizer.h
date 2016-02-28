@@ -38,7 +38,7 @@ class Randomizer {
   random_engine_t& random_generator();
   RangeSizeGenerator& get_range_size_generator(bsoncxx::stdx::string_view range_expression);
   double existence_draw();
-  std::function<void(bsoncxx::builder::stream::single_context)> const& get_value_pusher(
+  ValuePusher& get_value_pusher(
       bsoncxx::stdx::string_view col_name, bsoncxx::stdx::string_view name);
 };
 };
