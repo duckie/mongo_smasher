@@ -1,0 +1,12 @@
+{
+  "values":{
+    "id":{"type":"incremental_id"}
+  },
+  "collections":{
+    "restaurants":{
+      "schema":{
+        "restaurant_id":"$id"
+      }
+    }
+  }
+}

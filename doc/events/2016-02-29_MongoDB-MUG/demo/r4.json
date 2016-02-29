@@ -1,0 +1,25 @@
+{
+  "values":{
+    "id":{"type":"incremental_id"},
+    "nyzip":{"type":"pick","file":"../../../../examples/ny/zipcodes.txt"},
+    "nyst":{"type":"pick","file":"../../../../examples/ny/street-names.txt"},
+    "nybuilding":{"type":"pick","file":"../../../../examples/ny/buildings.txt"},
+    "borough":{"type":"pick","values":["Missing","Queens","Bronx","Brooklyn","Manhattan" ,"Staten Island"]},
+    "geo_x":{"type":"double","min":-28.0168595,"max":52.5388779},
+    "geo_y":{"type":"double","min":-157.8887924,"max":153.1628795}
+  },
+  "collections":{
+    "restaurants":{
+      "schema":{
+        "address":{
+          "building":"$nybuilding",
+          "street":"$nyst",
+          "coord":["$geo_x","$geo_y"],
+          "zipcode":"$nyzip"
+        },
+        "borough":"$borough",
+        "restaurant_id":"$id"
+      }
+    }
+  }
+}

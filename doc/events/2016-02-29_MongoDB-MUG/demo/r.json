@@ -5,16 +5,16 @@
     "score":{"type":"int","min":-1,"max":131},
     "grade":{"type":"pick", "values":["A","B","C","D","E","F"]},
     "grade_date":{"type":"date","min":"2012-01-01 00:00:00","max":"2016-02-29 00:00:00"},
-    "cuisine":{"type":"pick","file":"ny/cuisines.txt"},
-    "nyzip":{"type":"pick","file":"ny/zipcodes.txt"},
-    "nyst":{"type":"pick","file":"ny/street-names.txt"},
-    "nybuilding":{"type":"pick","file":"ny/buildings.txt"},
+    "cuisine":{"type":"pick","file":"../../../../examples/ny/cuisines.txt"},
+    "nyzip":{"type":"pick","file":"../../../../examples/ny/zipcodes.txt"},
+    "nyst":{"type":"pick","file":"../../../../examples/ny/street-names.txt"},
+    "nybuilding":{"type":"pick","file":"../../../../examples/ny/buildings.txt"},
     "borough":{"type":"pick","values":["Missing","Queens","Bronx","Brooklyn","Manhattan" ,"Staten Island"]},
     "geo_x":{"type":"double","min":-28.0168595,"max":52.5388779},
     "geo_y":{"type":"double","min":-157.8887924,"max":153.1628795},
     "price":{"type":"double","min":1.0,"max":500.0},
-    "firstname":{"type":"pick","file":"dictionaries/first-names.txt"},
-    "lastname":{"type":"pick","file":"dictionaries/names.txt"}
+    "firstname":{"type":"pick","file":"../../../../examples/dictionaries/first-names.txt"},
+    "lastname":{"type":"pick","file":"../../../../examples/dictionaries/names.txt"}
   },
   "collections":{
     "restaurants":{
@@ -32,7 +32,7 @@
           "grade":"$grade",
           "score":"$score"
         },
-        "name":"At $firstname $lastname's $cuisine $estaurant_seed",
+        "name":"At $firstname $lastname's $cuisine $restaurant_seed",
         "restaurant_id":"$id"
       },
       "weight":1.0,
@@ -40,7 +40,7 @@
     },
     "orders":{
       "schema":{"price":"$price"},
-      "weight":0.0
+      "weight":2.0
     }
   }
 }
