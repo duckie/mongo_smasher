@@ -3,12 +3,15 @@
 #include "logger.h"
 #include <mongocxx/pipeline.hpp>
 #include <sstream>
+#include <regex>
 
 namespace mongo_smasher {
 
 namespace bsx = bsoncxx;
 
-namespace {}
+namespace {
+std::regex value_regex{"\\$[a-zA-Z0-9_-]+"};
+}
 
 ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &queue,
                                bsoncxx::stdx::string_view name,
@@ -65,38 +68,102 @@ KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   return key_it->second;
 }
 
-void ProcessingUnit::process_element(bsoncxx::array::element const &element,
-                                     bsx::builder::stream::array &ctx) {
+ValueParams &ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) {
+  auto value_it = value_params_.find(value);
+  if (end(value_params_) == value_it) {
+    std::string to_match = value.to_string();
+    if (std::regex_match(to_match, value_regex)) {
+      log(log_level::debug, "Value \"%s\" registered as a simple value.\n", value.data());
+      auto insert_result =
+          value_params_.emplace(value, ValueParams{value_category::simple, value.substr(1), {}});
+      return insert_result.first->second;
+    } else {
+      // Try a search to see if it is a compound
+      size_t nb_found{0};
+      std::smatch base_match;
+      std::vector<std::pair<token_type, std::string>> values_sequence;
+      std::string buffer = to_match;
+      while (std::regex_search(buffer, base_match, value_regex)) {
+        values_sequence.reserve(values_sequence.size() + 2);
+        values_sequence.emplace_back(token_type::stale, base_match.prefix().str());
+        values_sequence.emplace_back(token_type::value, base_match[0].str().substr(1));
+        buffer = base_match.suffix().str();
+        ++nb_found;
+      }
+
+      if (0 < nb_found) {
+        values_sequence.emplace_back(token_type::stale, buffer);
+        log(log_level::debug, "Value \"%s\" registered as a compound value.\n", value.data());
+        auto insert_result = value_params_.emplace(
+            value, ValueParams{value_category::compound, value, std::move(values_sequence)});
+        return insert_result.first->second;
+      } else {
+        log(log_level::debug, "Value \"%s\" registered as a stale value.\n", value.data());
+        // Finally it is a stale one
+        auto insert_result =
+            value_params_.emplace(value, ValueParams{value_category::stale, value, {}});
+        return insert_result.first->second;
+      }
+    }
+  }
+  return value_it->second;
+}
+
+template <class T>
+void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
+  switch (value_params.category) {
+    case value_category::stale:
+      ctx << value_params.content;
+      break;
+    case value_category::simple:
+      ctx << randomizer_.get_value_pusher(name_, value_params.content).get_pusher();
+      break;
+    case value_category::compound: {
+      std::ostringstream result;
+      for (auto &value_seq_elem : value_params.values) {
+        switch (value_seq_elem.first) {
+          case token_type::stale:
+            result << value_seq_elem.second;
+            break;
+          case token_type::value:
+            result << randomizer_.get_value_pusher(name_, value_seq_elem.second).get_as_string();
+            break;
+        }
+      }
+      ctx << result.str();
+    } break;
+  }
+}
+
+template <class T>
+void ProcessingUnit::process_element(T const &element, bsoncxx::builder::stream::array &ctx) {
   if (element.type() == bsx::type::k_utf8) {
     auto value = to_str_view(element);
-    // First stage are statements over the key
-    if ('$' == value[0]) {
-      ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
-    }
+    // get_value_params(value);
+    process_value(ctx, get_value_params(value));
+    // ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
+    //// First stage are statements over the key
+    // if ('$' == value[0]) {
+    //}
   } else if (element.type() == bsx::type::k_document) {
     bsx::builder::stream::document child;
     for (auto value : element.get_document().view()) {
       process_element(value, child);
     }
     ctx << bsx::types::b_document{child.view()};
+  } else {
+    ctx << element.get_value();
   }
+}
+
+void ProcessingUnit::process_element(bsoncxx::array::element const &element,
+                                     bsx::builder::stream::array &ctx) {
+  return process_element<bsoncxx::array::element>(element, ctx);
 }
 
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::array &ctx) {
-  if (element.type() == bsx::type::k_utf8) {
-    auto value = to_str_view(element);
-    // First stage are statements over the key
-    if ('$' == value[0]) {
-      ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
-    }
-  } else if (element.type() == bsx::type::k_document) {
-    bsx::builder::stream::document child;
-    for (auto value : element.get_document().view()) {
-      process_element(value, child);
-    }
-    ctx << bsx::types::b_document{child.view()};
-  }
+  return process_element<bsoncxx::document::element>(element, ctx);
 }
 
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
@@ -121,10 +188,15 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
     } else {
       if (element.type() == bsx::type::k_utf8) {
         auto value = to_str_view(element);
+        auto inner_ctx = (ctx << key_type.name);
+        // get_value_params(value);
+        process_value(inner_ctx, get_value_params(value));
+        // inner_ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
         // First stage are statments over the key
-        if ('$' == value[0]) {
-          ctx << key_type.name << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
-        }
+        // if ('$' == value[0]) {
+        // ctx << key_type.name << randomizer_.get_value_pusher(name_,
+        // value.substr(1)).get_pusher();
+        //}
       } else if (element.type() == bsx::type::k_document) {
         bsx::builder::stream::document child;
         for (auto value : element.get_document().view()) {
@@ -137,6 +209,8 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
           process_element(value, child);
         }
         ctx << element.key() << bsx::types::b_array{child.view()};
+      } else {
+        ctx << element.key() << element.get_value();
       }
     }
   }

@@ -31,6 +31,22 @@ struct KeyParams {
   double probability;
 };
 
+// stale : A string that do not match any value keys, to be copied as is
+// simple: A reference to a single value
+// compound: A string concatenating values
+enum class value_category { stale, simple, compound };
+
+// Used for ValueParams
+// stale: A token to be copied as is
+// value: A reference to a value
+enum class token_type { stale, value };
+
+struct ValueParams {
+  value_category category;
+  bsoncxx::stdx::string_view content;
+  std::vector<std::pair<token_type,std::string>> values;
+};
+
 class ProcessingUnit {
   Randomizer& randomizer_;
   // CollectionHub& collections_;
@@ -46,10 +62,16 @@ class ProcessingUnit {
   std::map<std::string, std::pair<mongocxx::cursor, typename mongocxx::cursor::iterator>>
       foreign_cursors_;
 
-  using key_params = std::tuple<key_category, std::string, RangeSizeGenerator*>;
   std::map<bsoncxx::stdx::string_view, KeyParams> key_params_;
+  std::map<bsoncxx::stdx::string_view, ValueParams> value_params_;
 
   KeyParams& get_key_params(bsoncxx::stdx::string_view key);
+  ValueParams& get_value_params(bsoncxx::stdx::string_view value);
+  // Private member templates can be implemented in compilation unit
+  template <class T>
+  void process_value(T& ctx, ValueParams& value_params);
+  template <class T>
+  void process_element(T const& element, bsoncxx::builder::stream::array& ctx);
   void process_element(bsoncxx::array::element const& element,
                        bsoncxx::builder::stream::array& ctx);
   void process_element(bsoncxx::document::element const& element,

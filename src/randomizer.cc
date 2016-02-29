@@ -3,7 +3,9 @@
 #include <sstream>
 #include <fstream>
 #include <regex>
+#include <iomanip>
 #include <cppformat/format.h>
+#include <chrono>
 #include "logger.h"
 #include "utils.h"
 
@@ -47,6 +49,10 @@ class ValuePickPusher : public ValuePusher {
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
     ctx << values_[distrib_(gen_)];
   }
+
+  std::string get_as_string() override {
+    return values_[distrib_(gen_)];
+  }
 };
 
 struct StringPusherData {
@@ -67,10 +73,14 @@ class StringPusher : public ValuePusher, private StringPusherData {
   }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
+    ctx << get_as_string();
+  }
+
+  std::string get_as_string() override {
     ostringstream value_stream;
     size_t size = distrib_(gen_);
     for (size_t index = 0u; index < size; ++index) value_stream << alnums[char_chooser_(gen_)];
-    ctx << value_stream.str();
+    return value_stream.str();
   }
 };
 
@@ -79,19 +89,23 @@ class AsciiStringPusher : public ValuePusher {
   Generator &gen_;
   std::uniform_int_distribution<size_t> distrib_;
   // The char_chooser is kept here because it cannot stay const
-  std::uniform_int_distribution<unsigned char> char_chooser_{0u, 255u};
+  std::uniform_int_distribution<unsigned char> char_chooser_{1u, 255u};
 
  public:
   AsciiStringPusher(Generator &gen, size_t min_size, size_t max_size)
       : gen_(gen), distrib_(min_size, max_size) {
   }
 
-  void operator()(bsoncxx::builder::stream::single_context ctx) override {
+  std::string get_as_string() override {
     ostringstream value_stream;
     size_t size = distrib_(gen_);
     for (size_t index = 0u; index < size; ++index)
       value_stream << static_cast<char>(char_chooser_(gen_));
-    ctx << value_stream.str();
+    return value_stream.str();
+  }
+
+  void operator()(bsoncxx::builder::stream::single_context ctx) override {
+    ctx << get_as_string();
   }
 };
 
@@ -107,6 +121,12 @@ class IntPusher : public ValuePusher {
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
     ctx << distrib_(gen_);
   }
+
+  std::string get_as_string() override {
+    ostringstream value_stream;
+    value_stream << distrib_(gen_);
+    return value_stream.str();
+  }
 };
 
 template <class Generator>
@@ -121,6 +141,12 @@ class DoublePusher : public ValuePusher {
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
      ctx << bsx::types::b_double { distrib_(gen_) };
   }
+
+  std::string get_as_string() override {
+    ostringstream value_stream;
+    value_stream << distrib_(gen_);
+    return value_stream.str();
+  }
 };
 
 class IncrementalIDPusher : public ValuePusher {
@@ -130,6 +156,12 @@ class IncrementalIDPusher : public ValuePusher {
   IncrementalIDPusher() = default;
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
     ctx << bsx::types::b_utf8 {std::to_string(++id_)};
+  }
+
+  std::string get_as_string() override {
+    ostringstream value_stream;
+    value_stream << ++id_;
+    return value_stream.str();
   }
 };
 
@@ -145,7 +177,14 @@ class DatePusher : public ValuePusher {
   }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << bsx::types::b_date { static_cast<int64_t>(1000u*distrib_(gen_)) };
+    ctx << bsx::types::b_date { static_cast<int64_t>(1000u*distrib_(gen_)) };  // b_date takes milliseconds
+  }
+
+  std::string get_as_string() override {
+    ostringstream value_stream;
+    time_t time {static_cast<time_t>(distrib_(gen_))};
+    value_stream  << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+    return value_stream.str();
   }
 };
 }
@@ -168,6 +207,8 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
     }
 
     if (type == str_view("string")) {
+    }
+    else if (type == str_view("ascii_string")) {
     }
     else if (type == str_view("int")) {
     }
@@ -277,6 +318,14 @@ ValuePusher& Randomizer::get_value_pusher(
       int min = value["min_size"].get_int32();
       int max = value["max_size"].get_int32();
       value_pusher_it = col_generators.emplace(name, make_unique<StringPusher<decltype(gen_)>>(
+                                                         gen_, static_cast<size_t>(min),
+                                                         static_cast<size_t>(max)))
+                            .first;
+    }
+    else if (type == str_view("ascii_string")) {
+      int min = value["min_size"].get_int32();
+      int max = value["max_size"].get_int32();
+      value_pusher_it = col_generators.emplace(name, make_unique<AsciiStringPusher<decltype(gen_)>>(
                                                          gen_, static_cast<size_t>(min),
                                                          static_cast<size_t>(max)))
                             .first;
