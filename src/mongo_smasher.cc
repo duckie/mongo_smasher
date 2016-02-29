@@ -91,6 +91,7 @@ void run_stream(Config const& config) {
     consumers.emplace_back(pilot, queue, db_uri);
   }
 
+  size_t nb_loops{0};
   for (;;) {
     size_t producers_idle{0};
     for (auto& t : producers) {
@@ -102,9 +103,12 @@ void run_stream(Config const& config) {
     }
 
     constexpr size_t const us_per_ms = 1e3;  // microseconds per milliseconds
-    log(log_level::info, "Producers idle: %4lums, consumers idle: %4lums, queue size: %lu\n",
-        producers_idle / us_per_ms, consumers_idle / us_per_ms, queue.size());
+    // Drops the first line of idle : value are hugely biased by the cache filling
+    if (nb_loops)
+      log(log_level::info, "Producers idle: %4lums, consumers idle: %4lums, queue size: %lu\n",
+          producers_idle / us_per_ms, consumers_idle / us_per_ms, queue.size());
     std::this_thread::sleep_for(std::chrono::seconds{1});
+    ++nb_loops;
   }
 
   for (auto& t : consumers) {
