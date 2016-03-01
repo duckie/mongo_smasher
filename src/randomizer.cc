@@ -77,7 +77,7 @@ class StringPusher : public ValuePusher, private StringPusherData {
   }
 
   std::string get_as_string() override {
-    ostringstream value_stream;
+    fmt::MemoryWriter value_stream;
     size_t size = distrib_(gen_);
     for (size_t index = 0u; index < size; ++index) value_stream << alnums[char_chooser_(gen_)];
     return value_stream.str();
@@ -97,7 +97,7 @@ class AsciiStringPusher : public ValuePusher {
   }
 
   std::string get_as_string() override {
-    ostringstream value_stream;
+    fmt::MemoryWriter value_stream;
     size_t size = distrib_(gen_);
     for (size_t index = 0u; index < size; ++index)
       value_stream << static_cast<char>(char_chooser_(gen_));
@@ -123,9 +123,7 @@ class IntPusher : public ValuePusher {
   }
 
   std::string get_as_string() override {
-    ostringstream value_stream;
-    value_stream << distrib_(gen_);
-    return value_stream.str();
+    return fmt::format("{}", distrib_(gen_));
   }
 };
 
@@ -143,9 +141,7 @@ class DoublePusher : public ValuePusher {
   }
 
   std::string get_as_string() override {
-    ostringstream value_stream;
-    value_stream << distrib_(gen_);
-    return value_stream.str();
+    return fmt::format("{}", distrib_(gen_));
   }
 };
 
@@ -159,9 +155,7 @@ class IncrementalIDPusher : public ValuePusher {
   }
 
   std::string get_as_string() override {
-    ostringstream value_stream;
-    value_stream << ++id_;
-    return value_stream.str();
+    return fmt::format("{}", ++id_);
   }
 };
 

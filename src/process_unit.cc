@@ -4,6 +4,7 @@
 #include <mongocxx/pipeline.hpp>
 #include <sstream>
 #include <regex>
+#include <cppformat/format.h>
 
 namespace mongo_smasher {
 
@@ -119,7 +120,7 @@ void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
       ctx << randomizer_.get_value_pusher(name_, value_params.content).get_pusher();
       break;
     case value_category::compound: {
-      std::ostringstream result;
+      fmt::MemoryWriter result;
       for (auto &value_seq_elem : value_params.values) {
         switch (value_seq_elem.first) {
           case token_type::stale:
