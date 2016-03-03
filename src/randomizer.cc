@@ -137,7 +137,7 @@ class DoublePusher : public ValuePusher {
   }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
-     ctx << bsx::types::b_double { distrib_(gen_) };
+    ctx << bsx::types::b_double{distrib_(gen_)};
   }
 
   std::string get_as_string() override {
@@ -151,7 +151,7 @@ class IncrementalIDPusher : public ValuePusher {
  public:
   IncrementalIDPusher() = default;
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << bsx::types::b_utf8 {std::to_string(++id_)};
+    ctx << bsx::types::b_utf8{std::to_string(++id_)};
   }
 
   std::string get_as_string() override {
@@ -164,20 +164,23 @@ class DatePusher : public ValuePusher {
   Generator &gen_;
   std::uniform_int_distribution<size_t> distrib_;
 
-
  public:
-  DatePusher(Generator &gen, high_resolution_clock::time_point const& min, high_resolution_clock::time_point const& max) : gen_(gen), 
-  distrib_(duration_cast<seconds>(min.time_since_epoch()).count(), duration_cast<seconds>(max.time_since_epoch()).count()) {
+  DatePusher(Generator &gen, high_resolution_clock::time_point const &min,
+             high_resolution_clock::time_point const &max)
+      : gen_(gen),
+        distrib_(duration_cast<seconds>(min.time_since_epoch()).count(),
+                 duration_cast<seconds>(max.time_since_epoch()).count()) {
   }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << bsx::types::b_date { static_cast<int64_t>(1000u*distrib_(gen_)) };  // b_date takes milliseconds
+    ctx << bsx::types::b_date{
+        static_cast<int64_t>(1000u * distrib_(gen_))};  // b_date takes milliseconds
   }
 
   std::string get_as_string() override {
     ostringstream value_stream;
-    time_t time {static_cast<time_t>(distrib_(gen_))};
-    value_stream  << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
+    time_t time{static_cast<time_t>(distrib_(gen_))};
+    value_stream << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
     return value_stream.str();
   }
 };
@@ -201,18 +204,12 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
     }
 
     if (type == str_view("string")) {
-    }
-    else if (type == str_view("ascii_string")) {
-    }
-    else if (type == str_view("int")) {
-    }
-    else if (type == str_view("double")) {
-    }
-    else if (type == str_view("incremental_id")) {
-    }
-    else if (type == str_view("date")) {
-    }
-    else if (type == str_view("pick")) {
+    } else if (type == str_view("ascii_string")) {
+    } else if (type == str_view("int")) {
+    } else if (type == str_view("double")) {
+    } else if (type == str_view("incremental_id")) {
+    } else if (type == str_view("date")) {
+    } else if (type == str_view("pick")) {
       // Is it a file ?
       auto file_it = value.find("file");
       if (file_it != value.end()) {
@@ -235,19 +232,18 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
           log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(),
               new_vector.size());
         }
-      }
-      else {
+      } else {
         auto local_values_it = value.find("values");
         if (local_values_it != value.end()) {
           if (local_values_it->type() == bsx::type::k_array) {
             auto &new_vector = value_lists_[name];
             for (auto local_value : local_values_it->get_array().value) {
-              new_vector.push_back(local_value.get_utf8().value.to_string());  
+              new_vector.push_back(local_value.get_utf8().value.to_string());
             }
           }
-        }
-        else {
-          log(log_level::error, "Value \"%s\" should either have a file or a list of values.\n",name.data());
+        } else {
+          log(log_level::error, "Value \"%s\" should either have a file or a list of values.\n",
+              name.data());
         }
       }
     } else {
@@ -281,7 +277,7 @@ RangeSizeGenerator &Randomizer::get_range_size_generator(
   return *gen_it->second;
 }
 
-auto Randomizer::random_generator() -> random_engine_t& {
+auto Randomizer::random_generator() -> random_engine_t & {
   return gen_;
 }
 
@@ -289,72 +285,78 @@ double Randomizer::existence_draw() {
   return key_existence_(gen_);
 }
 
-ValuePusher& Randomizer::get_value_pusher(
-    str_view col_name, str_view name) {
+ValuePusher *Randomizer::get_value_pusher(str_view col_name, str_view name) {
   namespace bsx = bsoncxx;
   using bsx::document::view;
   using bsx::document::element;
   using bsx::stdx::string_view;
 
-  auto &col_generators = generators_[col_name];
-  auto value_pusher_it = col_generators.find(name);
-  if (end(col_generators) == value_pusher_it) {
+  auto& col_generators = generators_[col_name.to_string()];
+  auto name_str = name.to_string();
+  auto value_pusher_it = col_generators.find(name_str);
+  bool inserted = false;
+  if (std::end(col_generators) == value_pusher_it) {
     // Doesnt exist we have to insert it
-    auto value = values_[name].get_document().view();
-    auto type = to_str_view(value["type"]);
-    if (name.empty() || type.empty()) {
-      log(log_level::warning, "Neither name or type of a generator can be empty.\n");
-      throw exception();
+    auto value_it = values_.find(name);
+    if (value_it != end(values_)) {
+      auto &value = *value_it;
+      auto type = to_str_view(value["type"]);
+      if (name.empty() || type.empty()) {
+        log(log_level::warning, "Neither name or type of a generator can be empty.\n");
+        throw exception();
+      }
+
+      // log(log_level::error, fmt::format("Try {} => {}", type.data(), type ==
+      // str_view("string")).data());
+      if (type == str_view("string")) {
+        int min = value["min_size"].get_int32();
+        int max = value["max_size"].get_int32();
+        std::tie(value_pusher_it, inserted) = col_generators.emplace(
+            name_str, make_unique<StringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min),
+                                                            static_cast<size_t>(max)));
+      } else if (type == str_view("ascii_string")) {
+        int min = value["min_size"].get_int32();
+        int max = value["max_size"].get_int32();
+        std::tie(value_pusher_it, inserted) = col_generators.emplace(
+            name_str, make_unique<AsciiStringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min),
+                                                                 static_cast<size_t>(max)));
+      } else if (type == str_view("int")) {
+        int min = value["min"].get_int32();
+        int max = value["max"].get_int32();
+        std::tie(value_pusher_it, inserted) =
+            col_generators.emplace(name_str, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max));
+      } else if (type == str_view("date")) {
+        auto min = parse_iso_date(value["min"].get_utf8().value);
+        auto max = parse_iso_date(value["max"].get_utf8().value);
+        std::tie(value_pusher_it, inserted) =
+            col_generators.emplace(name_str, make_unique<DatePusher<decltype(gen_)>>(gen_, min, max));
+      } else if (type == str_view("double")) {
+        double min = value["min"].get_double();
+        double max = value["max"].get_double();
+        std::tie(value_pusher_it, inserted) =
+            col_generators.emplace(name_str, make_unique<DoublePusher<decltype(gen_)>>(gen_, min, max));
+      } else if (type == str_view("incremental_id")) {
+        std::tie(value_pusher_it, inserted) =
+            col_generators.emplace(name_str, make_unique<IncrementalIDPusher>());
+      } else if (type == str_view("pick")) {
+        // Register the type
+        auto const &possible_values = value_lists_[name];
+        std::tie(value_pusher_it, inserted) = col_generators.emplace(
+            name_str, make_unique<ValuePickPusher<decltype(gen_)>>(gen_, possible_values));
+      }
+
+      if (!inserted) {
+        log(log_level::error, "Unknown value type \"%s\".\n", type.data());
+      }
     }
 
-      //log(log_level::error, fmt::format("Try {} => {}", type.data(), type == str_view("string")).data());
-    if (type == str_view("string")) {
-      int min = value["min_size"].get_int32();
-      int max = value["max_size"].get_int32();
-      value_pusher_it = col_generators.emplace(name, make_unique<StringPusher<decltype(gen_)>>(
-                                                         gen_, static_cast<size_t>(min),
-                                                         static_cast<size_t>(max)))
-                            .first;
-    }
-    else if (type == str_view("ascii_string")) {
-      int min = value["min_size"].get_int32();
-      int max = value["max_size"].get_int32();
-      value_pusher_it = col_generators.emplace(name, make_unique<AsciiStringPusher<decltype(gen_)>>(
-                                                         gen_, static_cast<size_t>(min),
-                                                         static_cast<size_t>(max)))
-                            .first;
-    } else if (type == str_view("int")) {
-      int min = value["min"].get_int32();
-      int max = value["max"].get_int32();
-      value_pusher_it =
-          col_generators.emplace(name, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max))
-              .first;
-    } else if (type == str_view("date")) {
-      auto min = parse_iso_date(value["min"].get_utf8().value);
-      auto max = parse_iso_date(value["max"].get_utf8().value);
-      value_pusher_it =
-          col_generators.emplace(name, make_unique<DatePusher<decltype(gen_)>>(gen_, min, max))
-              .first;
-    } else if (type == str_view("double")) {
-      double min = value["min"].get_double();
-      double max = value["max"].get_double();
-      value_pusher_it =
-          col_generators.emplace(name, make_unique<DoublePusher<decltype(gen_)>>(gen_, min, max))
-              .first;
-    } else if (type == str_view("incremental_id")) {
-      value_pusher_it = col_generators.emplace(name, make_unique<IncrementalIDPusher>()).first;
-    } else if (type == str_view("pick")) {
-      // Register the type
-      auto const &possible_values = value_lists_[name];
-      value_pusher_it = col_generators.emplace(name, make_unique<ValuePickPusher<decltype(gen_)>>(
-                                                         gen_, possible_values))
-                            .first;
-    } else {
-      log(log_level::error, "Unknown value type \"%s\".\n", type.data());
+    // Not an error in case the key does not exist
+    if (!inserted) {
+      std::tie(value_pusher_it, inserted) = col_generators.emplace(name_str, nullptr);
     }
   }
 
-  return *value_pusher_it->second;
+  return value_pusher_it->second.get();
 }
 
 }  // namespace mongo_smasher

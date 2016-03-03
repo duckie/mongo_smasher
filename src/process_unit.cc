@@ -69,15 +69,20 @@ KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   return key_it->second;
 }
 
-ValueParams &ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) {
+ValueParams& ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) {
   auto value_it = value_params_.find(value);
+  bool inserted = false;
   if (end(value_params_) == value_it) {
     std::string to_match = value.to_string();
     if (std::regex_match(to_match, value_regex)) {
-      log(log_level::debug, "Value \"%s\" registered as a simple value.\n", value.data());
-      auto insert_result =
-          value_params_.emplace(value, ValueParams{value_category::simple, value.substr(1), {}});
-      return insert_result.first->second;
+      // Try to get the pusher
+      auto content = value.substr(1);
+      auto pusher = randomizer_.get_value_pusher(name_, content);
+      if (pusher) {
+        log(log_level::debug, "Value \"%s\" registered as a simple value.\n", value.data());
+        std::tie(value_it,inserted) =
+          value_params_.emplace(value, ValueParams{value_category::simple, content, {}});
+      }
     } else {
       // Try a search to see if it is a compound
       size_t nb_found{0};
@@ -85,26 +90,38 @@ ValueParams &ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) 
       std::vector<std::pair<token_type, std::string>> values_sequence;
       std::string buffer = to_match;
       while (std::regex_search(buffer, base_match, value_regex)) {
-        values_sequence.reserve(values_sequence.size() + 2);
-        values_sequence.emplace_back(token_type::stale, base_match.prefix().str());
-        values_sequence.emplace_back(token_type::value, base_match[0].str().substr(1));
+        // Try to get the pusher
+        auto content = base_match[0].str().substr(1);
+        auto pusher = randomizer_.get_value_pusher(name_, content);
+        if (pusher) {
+          // Ok this a interpretable key
+          values_sequence.emplace_back(token_type::stale, base_match.prefix().str());
+          values_sequence.emplace_back(token_type::value, base_match[0].str().substr(1));
+          ++nb_found;
+        }
+        else {
+          // Key not referenced, just a string then
+          // Not bad to add strings here because it is a one time cost
+          values_sequence.emplace_back(token_type::stale, base_match.prefix().str() + base_match[0].str());
+        }
         buffer = base_match.suffix().str();
-        ++nb_found;
       }
+
+      // TODO: Pack consecutive token_type::stale for better performances
 
       if (0 < nb_found) {
         values_sequence.emplace_back(token_type::stale, buffer);
         log(log_level::debug, "Value \"%s\" registered as a compound value.\n", value.data());
-        auto insert_result = value_params_.emplace(
+        std::tie(value_it,inserted) = value_params_.emplace(
             value, ValueParams{value_category::compound, value, std::move(values_sequence)});
-        return insert_result.first->second;
-      } else {
-        log(log_level::debug, "Value \"%s\" registered as a stale value.\n", value.data());
-        // Finally it is a stale one
-        auto insert_result =
-            value_params_.emplace(value, ValueParams{value_category::stale, value, {}});
-        return insert_result.first->second;
       }
+    }
+
+    if (!inserted) {
+      // Finally it is a stale one
+      log(log_level::debug, "Value \"%s\" registered as a stale value.\n", value.data());
+      std::tie(value_it,inserted) =
+        value_params_.emplace(value, ValueParams{value_category::stale, value, {}});
     }
   }
   return value_it->second;
@@ -116,8 +133,8 @@ void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
     case value_category::stale:
       ctx << value_params.content;
       break;
-    case value_category::simple:
-      ctx << randomizer_.get_value_pusher(name_, value_params.content).get_pusher();
+    case value_category::simple: 
+      ctx << randomizer_.get_value_pusher(name_, value_params.content)->get_pusher();
       break;
     case value_category::compound: {
       fmt::MemoryWriter result;
@@ -127,7 +144,7 @@ void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
             result << value_seq_elem.second;
             break;
           case token_type::value:
-            result << randomizer_.get_value_pusher(name_, value_seq_elem.second).get_as_string();
+            result << randomizer_.get_value_pusher(name_, value_seq_elem.second)->get_as_string();
             break;
         }
       }

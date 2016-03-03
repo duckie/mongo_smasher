@@ -28,8 +28,8 @@ class Randomizer {
 
   std::map<std::string, std::unique_ptr<RangeSizeGenerator>> range_size_generators_;
   std::map<bsoncxx::stdx::string_view, std::vector<std::string>> value_lists_;
-  std::map<bsoncxx::stdx::string_view,
-           std::map<bsoncxx::stdx::string_view, std::unique_ptr<ValuePusher>>> generators_;
+  std::map<std::string,
+           std::map<std::string, std::unique_ptr<ValuePusher>>> generators_;
 
  public:
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
@@ -38,7 +38,7 @@ class Randomizer {
   random_engine_t& random_generator();
   RangeSizeGenerator& get_range_size_generator(bsoncxx::stdx::string_view range_expression);
   double existence_draw();
-  ValuePusher& get_value_pusher(
+  ValuePusher* get_value_pusher(
       bsoncxx::stdx::string_view col_name, bsoncxx::stdx::string_view name);
 };
 };
