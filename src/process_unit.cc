@@ -31,6 +31,7 @@ KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   auto key_name = key;
   if (end(key_params_) == key_it) {
     // Read proba
+    bool inserted = false;
     double probability{1.};
     auto probability_pos = key.find_last_of('?');
     if (probability_pos != bsx::stdx::string_view::npos) {
@@ -47,29 +48,25 @@ KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
     if (range_end != bsx::stdx::string_view::npos) {
       auto range_start = key.find_last_of('[');
       std::string range_expr = key.substr(range_start + 1, range_end - range_start - 1).to_string();
-      try {
-        RangeSizeGenerator *generator = &randomizer_.get_range_size_generator(range_expr);
-        if (generator) {
-          auto insert_result = key_params_.emplace(
-              key, KeyParams{key_category::array, key.substr(0, range_start).to_string(), generator,
-                             probability});
-          return insert_result.first->second;
-        }
-      } catch (exception e) {
-        // Nothing, it is a simple key then
+      auto size_generator = randomizer_.make_range_size_generator(range_expr);
+      if (size_generator) {
+        std::tie(key_it, inserted) = key_params_.emplace(
+            key, KeyParams{key_category::array, key.substr(0, range_start).to_string(),
+                           std::move(size_generator), probability});
       }
     }
 
-    // Inserts a simple key
-    log(log_level::debug, "Extracting simple key name \"%s\"\n", key_name.to_string().c_str());
-    auto insert_result = key_params_.emplace(
-        key, KeyParams{key_category::simple, key_name.to_string(), nullptr, probability});
-    return insert_result.first->second;
+    if (!inserted) {
+      // Inserts a simple key
+      log(log_level::debug, "Extracting simple key name \"%s\"\n", key_name.to_string().c_str());
+      std::tie(key_it, inserted) = key_params_.emplace(
+          key, KeyParams{key_category::simple, key_name.to_string(), nullptr, probability});
+    }
   }
   return key_it->second;
 }
 
-ValueParams& ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) {
+ValueParams &ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) {
   auto value_it = value_params_.find(value);
   bool inserted = false;
   if (end(value_params_) == value_it) {
@@ -77,32 +74,35 @@ ValueParams& ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) 
     if (std::regex_match(to_match, value_regex)) {
       // Try to get the pusher
       auto content = value.substr(1);
-      auto pusher = randomizer_.get_value_pusher(name_, content);
+      auto pusher = randomizer_.make_value_pusher(content);
       if (pusher) {
         log(log_level::debug, "Value \"%s\" registered as a simple value.\n", value.data());
-        std::tie(value_it,inserted) =
-          value_params_.emplace(value, ValueParams{value_category::simple, content, {}});
+        std::tie(value_it, inserted) = value_params_.emplace(
+            value,
+            ValueParams{value_category::simple,{}});
+        value_it->second.values.emplace_back(TokenParams{token_type::value, content.to_string(), std::move(pusher)});
       }
     } else {
       // Try a search to see if it is a compound
       size_t nb_found{0};
       std::smatch base_match;
-      std::vector<std::pair<token_type, std::string>> values_sequence;
+      std::vector<TokenParams> values_sequence;
       std::string buffer = to_match;
       while (std::regex_search(buffer, base_match, value_regex)) {
         // Try to get the pusher
         auto content = base_match[0].str().substr(1);
-        auto pusher = randomizer_.get_value_pusher(name_, content);
+        auto pusher = randomizer_.make_value_pusher(content);
         if (pusher) {
           // Ok this a interpretable key
-          values_sequence.emplace_back(token_type::stale, base_match.prefix().str());
-          values_sequence.emplace_back(token_type::value, base_match[0].str().substr(1));
+          values_sequence.emplace_back(TokenParams{token_type::stale, base_match.prefix().str(), nullptr});
+          values_sequence.emplace_back(TokenParams{token_type::value, base_match[0].str().substr(1),
+                                       std::move(pusher)});
           ++nb_found;
-        }
-        else {
+        } else {
           // Key not referenced, just a string then
           // Not bad to add strings here because it is a one time cost
-          values_sequence.emplace_back(token_type::stale, base_match.prefix().str() + base_match[0].str());
+          values_sequence.emplace_back(TokenParams{token_type::stale,
+                                       base_match.prefix().str() + base_match[0].str(), nullptr});
         }
         buffer = base_match.suffix().str();
       }
@@ -110,18 +110,19 @@ ValueParams& ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) 
       // TODO: Pack consecutive token_type::stale for better performances
 
       if (0 < nb_found) {
-        values_sequence.emplace_back(token_type::stale, buffer);
+        values_sequence.emplace_back(TokenParams{token_type::stale, buffer, nullptr});
         log(log_level::debug, "Value \"%s\" registered as a compound value.\n", value.data());
-        std::tie(value_it,inserted) = value_params_.emplace(
-            value, ValueParams{value_category::compound, value, std::move(values_sequence)});
+        std::tie(value_it, inserted) = value_params_.emplace(
+            value, ValueParams{value_category::compound, std::move(values_sequence)});
       }
     }
 
     if (!inserted) {
       // Finally it is a stale one
       log(log_level::debug, "Value \"%s\" registered as a stale value.\n", value.data());
-      std::tie(value_it,inserted) =
-        value_params_.emplace(value, ValueParams{value_category::stale, value, {}});
+      std::tie(value_it, inserted) = value_params_.emplace(
+          value, ValueParams{value_category::stale, {}});
+      value_it->second.values.emplace_back(TokenParams{token_type::stale, value.to_string(), nullptr});
     }
   }
   return value_it->second;
@@ -131,20 +132,20 @@ template <class T>
 void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
   switch (value_params.category) {
     case value_category::stale:
-      ctx << value_params.content;
+      ctx << value_params.values[0].content;
       break;
-    case value_category::simple: 
-      ctx << randomizer_.get_value_pusher(name_, value_params.content)->get_pusher();
+    case value_category::simple:
+      ctx << value_params.values[0].pusher->get_pusher();
       break;
     case value_category::compound: {
       fmt::MemoryWriter result;
       for (auto &value_seq_elem : value_params.values) {
-        switch (value_seq_elem.first) {
+        switch (value_seq_elem.type) {
           case token_type::stale:
-            result << value_seq_elem.second;
+            result << value_seq_elem.content;
             break;
           case token_type::value:
-            result << randomizer_.get_value_pusher(name_, value_seq_elem.second)->get_as_string();
+            result << value_seq_elem.pusher->get_as_string();
             break;
         }
       }
@@ -187,7 +188,7 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
 void ProcessingUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::document &ctx) {
   auto const &key = element.key();
-  auto key_type = get_key_params(key);
+  auto& key_type = get_key_params(key);
 
   // Check if key should be inserted
   bool insert = true;
@@ -207,14 +208,7 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
       if (element.type() == bsx::type::k_utf8) {
         auto value = to_str_view(element);
         auto inner_ctx = (ctx << key_type.name);
-        // get_value_params(value);
         process_value(inner_ctx, get_value_params(value));
-        // inner_ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
-        // First stage are statments over the key
-        // if ('$' == value[0]) {
-        // ctx << key_type.name << randomizer_.get_value_pusher(name_,
-        // value.substr(1)).get_pusher();
-        //}
       } else if (element.type() == bsx::type::k_document) {
         bsx::builder::stream::document child;
         for (auto value : element.get_document().view()) {
@@ -247,7 +241,6 @@ typename DocumentBatch::queue_t::duration_t ProcessingUnit::process_tick() {
     }
     bulk_docs_.emplace_back(document.extract());
     if (bulk_size_ <= bulk_docs_.size()) {
-      // db_col_.insert_many(bulk_views_);
       auto idle_time = queue_.push({bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
       nb_instances_ += bulk_size_;
       bulk_docs_.clear();

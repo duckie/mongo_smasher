@@ -27,8 +27,19 @@ enum class key_category { simple, array };
 struct KeyParams {
   key_category category;
   std::string name;
-  RangeSizeGenerator* range_size_generator;
+  std::unique_ptr<RangeSizeGenerator> range_size_generator;
   double probability;
+};
+
+// Used for ValueParams
+// stale: A token to be copied as is
+// value: A reference to a value
+enum class token_type { stale, value };
+
+struct TokenParams {
+  token_type type;
+  std::string content;
+  std::unique_ptr<ValuePusher> pusher;
 };
 
 // stale : A string that do not match any value keys, to be copied as is
@@ -36,15 +47,9 @@ struct KeyParams {
 // compound: A string concatenating values
 enum class value_category { stale, simple, compound };
 
-// Used for ValueParams
-// stale: A token to be copied as is
-// value: A reference to a value
-enum class token_type { stale, value };
-
 struct ValueParams {
   value_category category;
-  bsoncxx::stdx::string_view content;
-  std::vector<std::pair<token_type,std::string>> values;
+  std::vector<TokenParams> values;
 };
 
 class ProcessingUnit {

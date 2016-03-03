@@ -19,8 +19,8 @@ struct RangeSizeGenerator {
 struct ValueList {
   // Holds ownership of an array, needed because said array
   // could be generated from a file
-  bsoncxx::array::value array_; 
-  
+  bsoncxx::array::value array_;
+
   // Elements, strings if extracted from a file but could be
   // anything else if extracted from the json file.
   //
@@ -38,21 +38,17 @@ class Randomizer {
   std::random_device rd_;
   mutable random_engine_t gen_;
   boost::filesystem::path system_root_path_;
-  std::uniform_real_distribution<double> key_existence_ {0.,1.};
-
-  std::map<std::string, std::unique_ptr<RangeSizeGenerator>> range_size_generators_;
+  std::uniform_real_distribution<double> key_existence_{0., 1.};
   std::map<bsoncxx::stdx::string_view, ValueList> value_lists_;
-  std::map<std::string,
-           std::map<std::string, std::unique_ptr<ValuePusher>>> generators_;
 
  public:
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
   Randomizer(Randomizer&&) = default;
   ~Randomizer() = default;
   random_engine_t& random_generator();
-  RangeSizeGenerator& get_range_size_generator(bsoncxx::stdx::string_view range_expression);
   double existence_draw();
-  ValuePusher* get_value_pusher(
-      bsoncxx::stdx::string_view col_name, bsoncxx::stdx::string_view name);
+  std::unique_ptr<RangeSizeGenerator> make_range_size_generator(
+      bsoncxx::stdx::string_view range_expression);
+  std::unique_ptr<ValuePusher> make_value_pusher(bsoncxx::stdx::string_view name);
 };
 };
