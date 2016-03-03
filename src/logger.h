@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include "utils.h"
+#include <cppformat/format.h>
 
 namespace mongo_smasher {
 enum class log_level : size_t {
@@ -22,11 +23,8 @@ log_level global_log_level();
 
 template <typename... T>
 void raw_log(log_level level, char const *format, T &&... args) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-security"
-  std::printf("[%s] ", enum_view<log_level>::to_string(level).c_str());
-  std::printf(format, args...);
-#pragma clang diagnostic pop
+  fmt::printf("[%s] ", enum_view<log_level>::to_string(level).c_str());
+  fmt::printf(format, args...);
 }
 
 template <typename... T>
