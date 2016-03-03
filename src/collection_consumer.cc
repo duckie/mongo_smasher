@@ -21,7 +21,7 @@ mongocxx::collection& CollectionHub::get_collection(std::string const& db_name, 
 
 CollectionConsumer::CollectionConsumer(ThreadPilot& pilot, typename DocumentBatch::queue_t& queue,
                                        std::string db_uri)
-    : pilot_{pilot}, queue_(queue), hub_{db_uri} {
+    : pilot_{pilot}, queue_(queue), hub_{db_uri}, idle_time_{0} {
 }
 
 void CollectionConsumer::run() {

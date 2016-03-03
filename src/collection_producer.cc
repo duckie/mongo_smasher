@@ -12,7 +12,9 @@ CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_
     : pilot_{pilot},
       queue_{queue},
       randomizer_(model["values"].get_document().view(), root_path),
-      model_(model) {
+      model_(model),
+      idle_time_ {0}
+      {
 }
 
 // CollectionProducer::CollectionProducer(CollectionProducer&& other) : queue_(other.queue_),
