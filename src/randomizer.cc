@@ -1,5 +1,7 @@
 #include "randomizer.h"
 #include <bsoncxx/stdx/make_unique.hpp>
+#include <bsoncxx/builder/basic/array.hpp>
+#include <bsoncxx/types/value.hpp>
 #include <sstream>
 #include <fstream>
 #include <regex>
@@ -39,19 +41,19 @@ template <class Generator>
 class ValuePickPusher : public ValuePusher {
   Generator &gen_;
   std::uniform_int_distribution<size_t> distrib_;
-  std::vector<std::string> const &values_;
+  std::vector<bsoncxx::array::element> const &values_;
 
  public:
-  ValuePickPusher(Generator &gen, std::vector<std::string> const &values)
+  ValuePickPusher(Generator &gen, std::vector<bsoncxx::array::element> const &values)
       : gen_(gen), distrib_(0, values.size() - 1), values_(values) {
   }
 
   void operator()(bsoncxx::builder::stream::single_context ctx) override {
-    ctx << values_[distrib_(gen_)];
+    ctx << values_[distrib_(gen_)].get_value();
   }
 
   std::string get_as_string() override {
-    return values_[distrib_(gen_)];
+    return to_string<bsoncxx::array::element>(values_[distrib_(gen_)]);
   }
 };
 
@@ -216,6 +218,7 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
         // Cache the file if not already done
         auto filename = to_str_view(*file_it);
         auto value_list_it = value_lists_.find(name);
+        bool inserted = false;
         if (end(value_lists_) == value_list_it) {
           auto file_path = system_root_path;
           file_path.append(filename.data());
@@ -226,19 +229,31 @@ Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
           }
 
           std::string line;
-          auto &new_vector = value_lists_[name];
-          while (std::getline(file_in, line)) new_vector.emplace_back(line.c_str());
+          bsoncxx::builder::basic::array array_builder;
+          while (std::getline(file_in, line)) {
+            array_builder.append(bsx::types::b_utf8{line});
+          }
+          std::tie(value_list_it,inserted) = value_lists_.emplace(name, ValueList{array_builder.extract(), {}});
+          auto& inserted_value_list = value_list_it->second;
+          for (auto& value : inserted_value_list.array_.view()) {
+            inserted_value_list.values_.emplace_back(value);
+          }
 
           log(log_level::debug, "File \"%s\" cached with %lu lines.\n", file_path.string().c_str(),
-              new_vector.size());
+              inserted_value_list.values_.size());
         }
       } else {
         auto local_values_it = value.find("values");
         if (local_values_it != value.end()) {
           if (local_values_it->type() == bsx::type::k_array) {
-            auto &new_vector = value_lists_[name];
+            bsoncxx::builder::basic::array array_builder;
             for (auto local_value : local_values_it->get_array().value) {
-              new_vector.push_back(local_value.get_utf8().value.to_string());
+              array_builder.append(local_value.get_value());
+            }
+            auto insert_result = value_lists_.emplace(name, ValueList{array_builder.extract(), {}});
+            auto& inserted_value_list = insert_result.first->second;
+            for (auto& value : inserted_value_list.array_.view()) {
+              inserted_value_list.values_.emplace_back(value);
             }
           }
         } else {
@@ -313,34 +328,34 @@ ValuePusher *Randomizer::get_value_pusher(str_view col_name, str_view name) {
         int max = value["max_size"].get_int32();
         std::tie(value_pusher_it, inserted) = col_generators.emplace(
             name_str, make_unique<StringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min),
-                                                            static_cast<size_t>(max)));
+              static_cast<size_t>(max)));
       } else if (type == str_view("ascii_string")) {
         int min = value["min_size"].get_int32();
         int max = value["max_size"].get_int32();
         std::tie(value_pusher_it, inserted) = col_generators.emplace(
             name_str, make_unique<AsciiStringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min),
-                                                                 static_cast<size_t>(max)));
+              static_cast<size_t>(max)));
       } else if (type == str_view("int")) {
         int min = value["min"].get_int32();
         int max = value["max"].get_int32();
         std::tie(value_pusher_it, inserted) =
-            col_generators.emplace(name_str, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max));
+          col_generators.emplace(name_str, make_unique<IntPusher<decltype(gen_)>>(gen_, min, max));
       } else if (type == str_view("date")) {
         auto min = parse_iso_date(value["min"].get_utf8().value);
         auto max = parse_iso_date(value["max"].get_utf8().value);
         std::tie(value_pusher_it, inserted) =
-            col_generators.emplace(name_str, make_unique<DatePusher<decltype(gen_)>>(gen_, min, max));
+          col_generators.emplace(name_str, make_unique<DatePusher<decltype(gen_)>>(gen_, min, max));
       } else if (type == str_view("double")) {
         double min = value["min"].get_double();
         double max = value["max"].get_double();
         std::tie(value_pusher_it, inserted) =
-            col_generators.emplace(name_str, make_unique<DoublePusher<decltype(gen_)>>(gen_, min, max));
+          col_generators.emplace(name_str, make_unique<DoublePusher<decltype(gen_)>>(gen_, min, max));
       } else if (type == str_view("incremental_id")) {
         std::tie(value_pusher_it, inserted) =
-            col_generators.emplace(name_str, make_unique<IncrementalIDPusher>());
+          col_generators.emplace(name_str, make_unique<IncrementalIDPusher>());
       } else if (type == str_view("pick")) {
         // Register the type
-        auto const &possible_values = value_lists_[name];
+        auto const &possible_values = value_lists_.find(name)->second.values_;
         std::tie(value_pusher_it, inserted) = col_generators.emplace(
             name_str, make_unique<ValuePickPusher<decltype(gen_)>>(gen_, possible_values));
       }

@@ -15,6 +15,20 @@ struct RangeSizeGenerator {
   virtual size_t generate_size() = 0;
 };
 
+// Struct to hold lists of pickable data
+struct ValueList {
+  // Holds ownership of an array, needed because said array
+  // could be generated from a file
+  bsoncxx::array::value array_; 
+  
+  // Elements, strings if extracted from a file but could be
+  // anything else if extracted from the json file.
+  //
+  // The array value should not be used because access time is O(n)
+  // instead of O(1) for the vector
+  std::vector<bsoncxx::array::element> values_;
+};
+
 class Randomizer {
  public:
   using random_engine_t = std::minstd_rand;
@@ -27,7 +41,7 @@ class Randomizer {
   std::uniform_real_distribution<double> key_existence_ {0.,1.};
 
   std::map<std::string, std::unique_ptr<RangeSizeGenerator>> range_size_generators_;
-  std::map<bsoncxx::stdx::string_view, std::vector<std::string>> value_lists_;
+  std::map<bsoncxx::stdx::string_view, ValueList> value_lists_;
   std::map<std::string,
            std::map<std::string, std::unique_ptr<ValuePusher>>> generators_;
 
