@@ -54,8 +54,6 @@ struct ValueParams {
 
 class ProcessingUnit {
   Randomizer& randomizer_;
-  // CollectionHub& collections_;
-  // mongocxx::collection& db_col_;
   typename DocumentBatch::queue_t& queue_;
   bsoncxx::stdx::string_view name_;
   bsoncxx::document::element model_;
@@ -72,6 +70,7 @@ class ProcessingUnit {
 
   KeyParams& get_key_params(bsoncxx::stdx::string_view key);
   ValueParams& get_value_params(bsoncxx::stdx::string_view value);
+
   // Private member templates can be implemented in compilation unit
   template <class T>
   void process_value(T& ctx, ValueParams& value_params);
@@ -89,9 +88,15 @@ class ProcessingUnit {
                  bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection,
                  double normalized_weight);
 
-  // Returns idle time
+  // 
+  // Produces a bulk of documents and return the time wasted on queue
+  // 
+  // Queues could block if the consumers are too slow, making 
+  // ProcessingUnit to delay.
+  //
   typename DocumentBatch::queue_t::duration_t process_tick();
-  bsoncxx::stdx::string_view name() const;
+
+  // Returns total of documents produces since beginning
   size_t nb_inserted() const;
 };
 

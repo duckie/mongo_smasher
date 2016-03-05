@@ -4,12 +4,19 @@
 
 namespace mongo_smasher {
 
+//
+// ValuePusher is the interface of random values generator proxies
+//
+// An instance can either produce a string or push a value into
+// a BSON document or array.
+//
 class ValuePusher {
   std::function<void(bsoncxx::builder::stream::single_context)> function_;
 
  public:
   ValuePusher() = default;
   virtual ~ValuePusher() = default;
+
   virtual void operator()(bsoncxx::builder::stream::single_context ctx) = 0;
   virtual std::string get_as_string() = 0;
 

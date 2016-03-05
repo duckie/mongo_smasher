@@ -250,10 +250,6 @@ typename DocumentBatch::queue_t::duration_t ProcessingUnit::process_tick() {
   return {};
 }
 
-bsx::stdx::string_view ProcessingUnit::name() const {
-  return name_;
-}
-
 size_t ProcessingUnit::nb_inserted() const {
   return nb_instances_;
 }

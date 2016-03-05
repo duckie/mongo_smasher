@@ -3,12 +3,9 @@
 namespace mongo_smasher {
 namespace document_pool {
 
-template <>
-typename enum_view_definition<update_method>::type
-    enum_view_definition<update_method>::str_array = {"latests", "sample"};
-
-
-// TODO not implemented yet, be done after find
-
 }  // namespace document_pool
+
+template <>
+typename enum_view_definition<document_pool::update_method>::type
+    enum_view_definition<document_pool::update_method>::str_array = {"latests", "sample"};
 }  // namespace mongo_smasher

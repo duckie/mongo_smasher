@@ -282,10 +282,6 @@ std::unique_ptr<RangeSizeGenerator> Randomizer::make_range_size_generator(
   return new_generator;
 }
 
-auto Randomizer::random_generator() -> random_engine_t & {
-  return gen_;
-}
-
 double Randomizer::existence_draw() {
   return key_existence_(gen_);
 }

@@ -29,6 +29,16 @@ struct ValueList {
   std::vector<bsoncxx::array::element> values_;
 };
 
+//
+// Randomizer produces every random data
+//
+// Random complexity is all concentrated in that object
+// responsible for consuming its pseudo-random generator.
+// This generators can consumed by ValuePicker objects, thus
+// ValuePickers are built by the Randomizer.
+// 
+// Randomizer is responsible for parsing and caching $root_object.values
+//
 class Randomizer {
  public:
   using random_engine_t = std::minstd_rand;
@@ -45,10 +55,17 @@ class Randomizer {
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
   Randomizer(Randomizer&&) = default;
   ~Randomizer() = default;
-  random_engine_t& random_generator();
+
+  // Returns a randomized double from [0,1] used by the caller
+  // to implement a Bernouilli baw based on a weight  does not
+  // know off.
   double existence_draw();
+
+  // Interprets a string as an array range (ex: "0:10") and creates the matching
+  // proxy to generate a size in that range
   std::unique_ptr<RangeSizeGenerator> make_range_size_generator(
       bsoncxx::stdx::string_view range_expression);
+
   std::unique_ptr<ValuePusher> make_value_pusher(bsoncxx::stdx::string_view name);
 };
 };
