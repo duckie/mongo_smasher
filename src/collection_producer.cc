@@ -23,7 +23,7 @@ CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_
 //}
 
 void CollectionProducer::run() {
-  std::vector<ProcessingUnit> units;
+  std::vector<InsertUnit> units;
 
   // Compute weight ratio to apply
   double max_weight{0.};

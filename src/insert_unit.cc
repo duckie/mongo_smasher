@@ -1,4 +1,4 @@
-#include "process_unit.h"
+#include "insert_unit.h"
 #include "mongo_smasher.h"
 #include "logger.h"
 #include <mongocxx/pipeline.hpp>
@@ -14,7 +14,7 @@ namespace {
 std::regex value_regex{"\\$[a-zA-Z0-9_-]+"};
 }
 
-ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &queue,
+InsertUnit::InsertUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &queue,
                                bsoncxx::stdx::string_view name,
                                bsoncxx::document::view const &collection, double normalized_weight)
     : randomizer_{randomizer},
@@ -26,7 +26,7 @@ ProcessingUnit::ProcessingUnit(Randomizer &randomizer, typename DocumentBatch::q
   bulk_docs_.reserve(bulk_size_);
 }
 
-KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
+KeyParams &InsertUnit::get_key_params(bsoncxx::stdx::string_view key) {
   auto key_it = key_params_.find(key);
   auto key_name = key;
   if (end(key_params_) == key_it) {
@@ -66,7 +66,7 @@ KeyParams &ProcessingUnit::get_key_params(bsoncxx::stdx::string_view key) {
   return key_it->second;
 }
 
-ValueParams &ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) {
+ValueParams &InsertUnit::get_value_params(bsoncxx::stdx::string_view value) {
   auto value_it = value_params_.find(value);
   bool inserted = false;
   if (end(value_params_) == value_it) {
@@ -129,7 +129,7 @@ ValueParams &ProcessingUnit::get_value_params(bsoncxx::stdx::string_view value) 
 }
 
 template <class T>
-void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
+void InsertUnit::process_value(T &ctx, ValueParams &value_params) {
   switch (value_params.category) {
     case value_category::stale:
       ctx << value_params.values[0].content;
@@ -155,7 +155,7 @@ void ProcessingUnit::process_value(T &ctx, ValueParams &value_params) {
 }
 
 template <class T>
-void ProcessingUnit::process_element(T const &element, bsoncxx::builder::stream::array &ctx) {
+void InsertUnit::process_element(T const &element, bsoncxx::builder::stream::array &ctx) {
   if (element.type() == bsx::type::k_utf8) {
     auto value = to_str_view(element);
     // get_value_params(value);
@@ -175,17 +175,17 @@ void ProcessingUnit::process_element(T const &element, bsoncxx::builder::stream:
   }
 }
 
-void ProcessingUnit::process_element(bsoncxx::array::element const &element,
+void InsertUnit::process_element(bsoncxx::array::element const &element,
                                      bsx::builder::stream::array &ctx) {
   return process_element<bsoncxx::array::element>(element, ctx);
 }
 
-void ProcessingUnit::process_element(bsoncxx::document::element const &element,
+void InsertUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::array &ctx) {
   return process_element<bsoncxx::document::element>(element, ctx);
 }
 
-void ProcessingUnit::process_element(bsoncxx::document::element const &element,
+void InsertUnit::process_element(bsoncxx::document::element const &element,
                                      bsx::builder::stream::document &ctx) {
   auto const &key = element.key();
   auto& key_type = get_key_params(key);
@@ -228,7 +228,7 @@ void ProcessingUnit::process_element(bsoncxx::document::element const &element,
   }
 }
 
-typename DocumentBatch::queue_t::duration_t ProcessingUnit::process_tick() {
+typename DocumentBatch::queue_t::duration_t InsertUnit::process_tick() {
   if (1. <= weight_ || randomizer_.existence_draw() <= weight_) {
     bsx::builder::stream::document document;
     for (auto value : model_.get_document().view()) {
@@ -250,7 +250,7 @@ typename DocumentBatch::queue_t::duration_t ProcessingUnit::process_tick() {
   return {};
 }
 
-size_t ProcessingUnit::nb_inserted() const {
+size_t InsertUnit::nb_inserted() const {
   return nb_instances_;
 }
 

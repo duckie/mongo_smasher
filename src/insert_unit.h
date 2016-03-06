@@ -52,7 +52,7 @@ struct ValueParams {
   std::vector<TokenParams> values;
 };
 
-class ProcessingUnit {
+class InsertUnit {
   Randomizer& randomizer_;
   typename DocumentBatch::queue_t& queue_;
   bsoncxx::stdx::string_view name_;
@@ -84,7 +84,7 @@ class ProcessingUnit {
                        bsoncxx::builder::stream::document& ctx);
 
  public:
-  ProcessingUnit(Randomizer& randomizer, typename DocumentBatch::queue_t& queue,
+  InsertUnit(Randomizer& randomizer, typename DocumentBatch::queue_t& queue,
                  bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection,
                  double normalized_weight);
 
@@ -92,7 +92,7 @@ class ProcessingUnit {
   // Produces a bulk of documents and return the time wasted on queue
   // 
   // Queues could block if the consumers are too slow, making 
-  // ProcessingUnit to delay.
+  // InsertUnit to delay.
   //
   typename DocumentBatch::queue_t::duration_t process_tick();
 
