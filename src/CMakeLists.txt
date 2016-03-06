@@ -58,7 +58,7 @@ link_directories(${PROJECT_BINARY_DIR}/lib)
 set(LIBRARIES "${LIBRARIES}" bson-1.0 bsoncxx mongoc-1.0 mongocxx cppformat)
 
 # Boost support
-FIND_PACKAGE(Boost COMPONENTS program_options filesystem system REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS program_options filesystem system thread REQUIRED)
 if(Boost_FOUND)
 include_directories(${Boost_INCLUDE_DIRS})
 if(NOT MSVC)
