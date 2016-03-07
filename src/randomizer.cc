@@ -301,22 +301,22 @@ std::unique_ptr<ValuePusher> Randomizer::make_value_pusher(str_view name) {
     }
 
     if (type == str_view("string")) {
-      new_value_pusher = make_unique<StringPusher<decltype(gen_)>>(gen_, value["min"].get<size_t>(),
-                                                                   value["max"].get<size_t>());
+      new_value_pusher = make_unique<StringPusher<decltype(gen_)>>(gen_, value["min_size"].get<size_t>(),
+                                                                   value["max_size"].get<size_t>());
 
     } else if (type == str_view("ascii_string")) {
       new_value_pusher = make_unique<AsciiStringPusher<decltype(gen_)>>(
           gen_, value["min_size"].get<size_t>(), value["max_size"].get<size_t>());
     } else if (type == str_view("int")) {
-      new_value_pusher = make_unique<IntPusher<decltype(gen_)>>(gen_, value["min_size"].get<int>(),
-                                                                value["max_size"].get<int>());
+      new_value_pusher = make_unique<IntPusher<decltype(gen_)>>(gen_, value["min"].get<int>(),
+                                                                value["max"].get<int>());
     } else if (type == str_view("date")) {
       auto min = parse_iso_date(value["min"].get<bsoncxx::stdx::string_view>());
       auto max = parse_iso_date(value["max"].get<bsoncxx::stdx::string_view>());
       new_value_pusher = make_unique<DatePusher<decltype(gen_)>>(gen_, min, max);
     } else if (type == str_view("double")) {
       new_value_pusher = make_unique<DoublePusher<decltype(gen_)>>(
-          gen_, value["min_size"].get<double>(), value["max_size"].get<double>());
+          gen_, value["min"].get<double>(), value["max"].get<double>());
     } else if (type == str_view("incremental_id")) {
       new_value_pusher = make_unique<IncrementalIDPusher>();
     } else if (type == str_view("pick")) {
