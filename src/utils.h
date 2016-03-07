@@ -1,4 +1,8 @@
 #pragma once
+#include <bsoncxx/document/value.hpp>
+#include <bsoncxx/document/element.hpp>
+#include <bsoncxx/array/value.hpp>
+#include <bsoncxx/array/element.hpp>
 #include <bsoncxx/stdx/string_view.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <type_traits>
@@ -133,7 +137,7 @@ T to_int(bsoncxx::document::view const& view, bsoncxx::stdx::string_view name, T
   return default_value;
 }
 
-class LooseDocumentView {
+class LooseElement {
   enum class type { null, doc_elem, array_elem, document, array };
   union value {
     value();
@@ -150,25 +154,28 @@ class LooseDocumentView {
   void clear();
 
  public:
-  LooseDocumentView();
-  LooseDocumentView(bsoncxx::document::view view);
-  LooseDocumentView(bsoncxx::array::view view);
-  LooseDocumentView(bsoncxx::document::element element);
-  LooseDocumentView(bsoncxx::array::element element);
-  LooseDocumentView(LooseDocumentView const&);
-  LooseDocumentView(LooseDocumentView &&);
-  LooseDocumentView& operator=(LooseDocumentView const&);
-  LooseDocumentView& operator=(LooseDocumentView &&);
-  ~LooseDocumentView();
+  LooseElement();
+  LooseElement(bsoncxx::document::view view);
+  LooseElement(bsoncxx::array::view view);
+  LooseElement(bsoncxx::document::element element);
+  LooseElement(bsoncxx::array::element element);
+  LooseElement(LooseElement const&);
+  LooseElement(LooseElement &&);
+  LooseElement& operator=(LooseElement const&);
+  LooseElement& operator=(LooseElement &&);
+  ~LooseElement();
 
-  LooseDocumentView operator[] (char const* key);
-  LooseDocumentView operator[] (bsoncxx::stdx::string_view key);
-  LooseDocumentView operator[] (std::string const& key);
-  template <size_t Size> inline LooseDocumentView operator[] (char const (&key)[Size]) {
+  LooseElement operator[] (char const* key);
+  LooseElement operator[] (bsoncxx::stdx::string_view key);
+  LooseElement operator[] (std::string const& key);
+  template <size_t Size> inline LooseElement operator[] (char const (&key)[Size]) {
     return (*this)[bsoncxx::stdx::string_view{key,Size}];
   }
 
-  LooseDocumentView operator[] (size_t index);
+  LooseElement operator[] (size_t index);
+  inline LooseElement operator[] (int32_t index) { return (*this)[static_cast<size_t>(index)]; }
+  inline LooseElement operator[] (int64_t index) { return (*this)[static_cast<size_t>(index)]; }
+  inline LooseElement operator[] (uint32_t index) { return (*this)[static_cast<size_t>(index)]; }
 
   template <class T> typename std::enable_if<std::is_same<std::string,T>::value,T>::type get(std::string def = {}) {
     switch (type_) {

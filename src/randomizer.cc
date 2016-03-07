@@ -293,7 +293,7 @@ std::unique_ptr<ValuePusher> Randomizer::make_value_pusher(str_view name) {
   std::unique_ptr<ValuePusher> new_value_pusher;
   auto value_it = values_.find(name);
   if (value_it != end(values_)) {
-    LooseDocumentView value(*value_it);
+    LooseElement value(*value_it);
     auto type = value["type"].get<bsoncxx::stdx::string_view>();
     if (name.empty() || type.empty()) {
       log(log_level::warning, "Neither name or type of a generator can be empty.\n");

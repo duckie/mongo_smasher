@@ -17,29 +17,29 @@ std::chrono::high_resolution_clock::time_point parse_iso_date(bsoncxx::stdx::str
   return std::chrono::high_resolution_clock::from_time_t(std::mktime(&tm));
 }
 
-LooseDocumentView::value::value() {
+LooseElement::value::value() {
 }
 
-LooseDocumentView::LooseDocumentView() : type_{type::null} {
+LooseElement::LooseElement() : type_{type::null} {
 }
 
-LooseDocumentView::LooseDocumentView(bsoncxx::document::view view) : type_{type::document} {
+LooseElement::LooseElement(bsoncxx::document::view view) : type_{type::document} {
   value_.doc = std::move(view);
 }
 
-LooseDocumentView::LooseDocumentView(bsoncxx::array::view view) : type_{type::array} {
+LooseElement::LooseElement(bsoncxx::array::view view) : type_{type::array} {
   value_.array = std::move(view);
 }
 
-LooseDocumentView::LooseDocumentView(bsoncxx::document::element element) : type_{type::doc_elem} {
+LooseElement::LooseElement(bsoncxx::document::element element) : type_{type::doc_elem} {
   value_.doc_elem = std::move(element);
 }
 
-LooseDocumentView::LooseDocumentView(bsoncxx::array::element element) : type_{type::array_elem} {
+LooseElement::LooseElement(bsoncxx::array::element element) : type_{type::array_elem} {
   value_.array_elem = std::move(element);
 }
 
-LooseDocumentView::LooseDocumentView(LooseDocumentView const& other) {
+LooseElement::LooseElement(LooseElement const& other) {
   type_ = other.type_;
   switch (type_) {
     case type::null:
@@ -59,7 +59,7 @@ LooseDocumentView::LooseDocumentView(LooseDocumentView const& other) {
   }
 }
 
-LooseDocumentView::LooseDocumentView(LooseDocumentView && other) {
+LooseElement::LooseElement(LooseElement && other) {
   type_ = other.type_;
   switch (type_) {
     case type::null:
@@ -79,23 +79,23 @@ LooseDocumentView::LooseDocumentView(LooseDocumentView && other) {
   }
 }
 
-LooseDocumentView& LooseDocumentView::operator=(LooseDocumentView const& other) {
+LooseElement& LooseElement::operator=(LooseElement const& other) {
   clear();
-  new (this) LooseDocumentView(other);
+  new (this) LooseElement(other);
   return *this;
 }
 
-LooseDocumentView& LooseDocumentView::operator=(LooseDocumentView && other) {
+LooseElement& LooseElement::operator=(LooseElement && other) {
   clear();
-  new (this) LooseDocumentView(std::move(other));
+  new (this) LooseElement(std::move(other));
   return *this;
 }
 
-LooseDocumentView::~LooseDocumentView() {
+LooseElement::~LooseElement() {
   clear();
 }
 
-void LooseDocumentView::clear() {
+void LooseElement::clear() {
   switch (type_) {
     case type::null:
       break;
@@ -114,22 +114,22 @@ void LooseDocumentView::clear() {
   }
 }
 
-LooseDocumentView LooseDocumentView::operator[](char const* key) {
+LooseElement LooseElement::operator[](char const* key) {
   return (*this)[bsoncxx::stdx::string_view(key)];
 }
 
-LooseDocumentView LooseDocumentView::operator[](bsoncxx::stdx::string_view key) {
+LooseElement LooseElement::operator[](bsoncxx::stdx::string_view key) {
   switch (type_) {
     case type::document: {
       auto element = value_.doc.find(key);
       if (element != value_.doc.end()) {
         switch (element->type()) {
           case bsoncxx::type::k_document:
-            return LooseDocumentView(element->get_document().view());
+            return LooseElement(element->get_document().view());
           case bsoncxx::type::k_array:
-            return LooseDocumentView(element->get_array().value);
+            return LooseElement(element->get_array().value);
           default:
-            return LooseDocumentView(*element);
+            return LooseElement(*element);
         }
       }
     } break;
@@ -141,11 +141,11 @@ LooseDocumentView LooseDocumentView::operator[](bsoncxx::stdx::string_view key) 
           if (element != doc.end()) {
             switch (element->type()) {
               case bsoncxx::type::k_document:
-                return LooseDocumentView(element->get_document().view());
+                return LooseElement(element->get_document().view());
               case bsoncxx::type::k_array:
-                return LooseDocumentView(element->get_array().value);
+                return LooseElement(element->get_array().value);
               default:
-                return LooseDocumentView(*element);
+                return LooseElement(*element);
             }
           }
         } break;
@@ -159,22 +159,22 @@ LooseDocumentView LooseDocumentView::operator[](bsoncxx::stdx::string_view key) 
   return {};
 }
 
-LooseDocumentView LooseDocumentView::operator[](std::string const& key) {
+LooseElement LooseElement::operator[](std::string const& key) {
   return (*this)[bsoncxx::stdx::string_view(key.data(), key.size())];
 }
 
-LooseDocumentView LooseDocumentView::operator[](size_t index) {
+LooseElement LooseElement::operator[](size_t index) {
   switch (type_) {
     case type::array: {
       auto element = value_.array.find(index);
       if (element != value_.array.end()) {
         switch (element->type()) {
           case bsoncxx::type::k_document:
-            return LooseDocumentView(element->get_document().view());
+            return LooseElement(element->get_document().view());
           case bsoncxx::type::k_array:
-            return LooseDocumentView(element->get_array().value);
+            return LooseElement(element->get_array().value);
           default:
-            return LooseDocumentView(*element);
+            return LooseElement(*element);
         }
       }
     } break;
@@ -186,11 +186,11 @@ LooseDocumentView LooseDocumentView::operator[](size_t index) {
           if (element != array.end()) {
             switch (element->type()) {
               case bsoncxx::type::k_document:
-                return LooseDocumentView(element->get_document().view());
+                return LooseElement(element->get_document().view());
               case bsoncxx::type::k_array:
-                return LooseDocumentView(element->get_array().value);
+                return LooseElement(element->get_array().value);
               default:
-                return LooseDocumentView(*element);
+                return LooseElement(*element);
             }
           }
         } break;

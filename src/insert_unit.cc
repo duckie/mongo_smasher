@@ -22,7 +22,7 @@ InsertUnit::InsertUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &
       name_{name},
       model_{collection["schema"]},
       weight_{normalized_weight},
-      bulk_size_{LooseDocumentView(collection)["bulk_size"].get<size_t>()}{
+      bulk_size_{LooseElement(collection)["bulk_size"].get<size_t>()}{
   bulk_docs_.reserve(bulk_size_);
 }
 
