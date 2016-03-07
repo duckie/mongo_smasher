@@ -19,15 +19,22 @@ TEST_CASE("Document model","[loose_model]") {
   REQUIRE(model_view["str"].get<stdx::string_view>() == stdx::string_view("Roger"));
   REQUIRE(model_view["int"].get<int>() == 1);
   REQUIRE(model_view["double"].get<double>() == 1.);
+  
+  // Non existing keys
   REQUIRE(model_view["str2"].get<std::string>() == "");
   REQUIRE(model_view["str2"].get<stdx::string_view>() == stdx::string_view(""));
   REQUIRE(model_view["int2"].get<int>() == 0);
   REQUIRE(model_view["double2"].get<double>() == 0.);
 
+  // Non existing with defaults
+  REQUIRE(model_view["str2"].get<std::string>("Marcel") == "Marcel");
+  REQUIRE(model_view["str2"].get<stdx::string_view>("Marcel") == stdx::string_view("Marcel"));
+  REQUIRE(model_view["int2"].get<int>(1) == 1);
+  REQUIRE(model_view["double2"].get<double>(1.) == 1.);
 }
 
 TEST_CASE("Array model","[loose_model]") {
-  document::value model = bsoncxx::from_json(R"json({"array":["Roger",1,1.0,null]})json");
+  document::value model = bsoncxx::from_json(R"json({"array":["Roger",1,1.0]})json");
   LooseElement root_view(model.view());
   LooseElement model_view(root_view["array"]);
 
@@ -35,9 +42,17 @@ TEST_CASE("Array model","[loose_model]") {
   REQUIRE(model_view[0].get<stdx::string_view>() == stdx::string_view("Roger"));
   REQUIRE(model_view[1].get<int>() == 1);
   REQUIRE(model_view[2].get<double>() == 1.);
-  REQUIRE(model_view[3].get<std::string>() == "null");
+
+  // Non existing keys
+  REQUIRE(model_view[3].get<std::string>() == "");
   REQUIRE(model_view[3].get<stdx::string_view>() == stdx::string_view(""));
   REQUIRE(model_view[3].get<int>() == 0);
   REQUIRE(model_view[3].get<double>() == 0.);
+
+  // Non existing keys with defaults
+  REQUIRE(model_view[3].get<std::string>("Marcel") == "Marcel");
+  REQUIRE(model_view[3].get<stdx::string_view>("Marcel") == stdx::string_view("Marcel"));
+  REQUIRE(model_view[3].get<int>(1) == 1);
+  REQUIRE(model_view[3].get<double>(1.) == 1.);
 }
 
