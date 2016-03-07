@@ -1,5 +1,6 @@
 #include "collection_producer.h"
 #include "logger.h"
+#include "utils.h"
 
 using namespace bsoncxx::stdx;
 using namespace bsoncxx;
@@ -29,11 +30,8 @@ void CollectionProducer::run() {
   double max_weight{0.};
   std::map<string_view, double> weights;
   for (auto collection_element : model_["collections"].get_document().view()) {
-    double weight{1.};
     auto collection_view = collection_element.get_document().view();
-    auto weight_it = collection_view.find("weight");
-    if (weight_it != collection_view.end() && weight_it->type() == type::k_double)
-      weight = weight_it->get_double().value;
+    double weight = LooseElement(collection_view)["weight"].get<double>(1.);
     if (weight < 0.) weight = 0.;
     if (max_weight < weight) max_weight = weight;
     weights.emplace(collection_element.key(), weight);
