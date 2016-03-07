@@ -114,11 +114,11 @@ void LooseElement::clear() {
   }
 }
 
-LooseElement LooseElement::operator[](char const* key) {
+LooseElement LooseElement::operator[](char const* key) const {
   return (*this)[bsoncxx::stdx::string_view(key)];
 }
 
-LooseElement LooseElement::operator[](bsoncxx::stdx::string_view key) {
+LooseElement LooseElement::operator[](bsoncxx::stdx::string_view key) const {
   switch (type_) {
     case type::document: {
       auto element = value_.doc.find(key);
@@ -159,11 +159,11 @@ LooseElement LooseElement::operator[](bsoncxx::stdx::string_view key) {
   return {};
 }
 
-LooseElement LooseElement::operator[](std::string const& key) {
+LooseElement LooseElement::operator[](std::string const& key) const {
   return (*this)[bsoncxx::stdx::string_view(key.data(), key.size())];
 }
 
-LooseElement LooseElement::operator[](size_t index) {
+LooseElement LooseElement::operator[](size_t index) const {
   switch (type_) {
     case type::array: {
       auto element = value_.array.find(index);

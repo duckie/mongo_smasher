@@ -179,19 +179,19 @@ class LooseElement {
   LooseElement& operator=(LooseElement &&);
   ~LooseElement();
 
-  LooseElement operator[] (char const* key);
-  LooseElement operator[] (bsoncxx::stdx::string_view key);
-  LooseElement operator[] (std::string const& key);
-  template <size_t Size> inline LooseElement operator[] (char const (&key)[Size]) {
+  LooseElement operator[] (char const* key) const;
+  LooseElement operator[] (bsoncxx::stdx::string_view key) const;
+  LooseElement operator[] (std::string const& key) const;
+  template <size_t Size> inline LooseElement operator[] (char const (&key)[Size]) const {
     return (*this)[bsoncxx::stdx::string_view{key,Size}];
   }
 
-  LooseElement operator[] (size_t index);
-  inline LooseElement operator[] (int32_t index) { return (*this)[static_cast<size_t>(index)]; }
-  inline LooseElement operator[] (int64_t index) { return (*this)[static_cast<size_t>(index)]; }
-  inline LooseElement operator[] (uint32_t index) { return (*this)[static_cast<size_t>(index)]; }
+  LooseElement operator[] (size_t index) const;
+  inline LooseElement operator[] (int32_t index) const { return (*this)[static_cast<size_t>(index)]; }
+  inline LooseElement operator[] (int64_t index) const { return (*this)[static_cast<size_t>(index)]; }
+  inline LooseElement operator[] (uint32_t index) const { return (*this)[static_cast<size_t>(index)]; }
 
-  template <class T> typename std::enable_if<std::is_same<std::string,T>::value,T>::type get(std::string def = {}) {
+  template <class T> typename std::enable_if<std::is_same<std::string,T>::value,T>::type get(std::string def = {}) const {
     switch (type_) {
       case type::doc_elem:
         return to_string(value_.doc_elem);
@@ -204,7 +204,7 @@ class LooseElement {
     return def;
   }
 
-  template <class T> typename std::enable_if<std::is_same<bsoncxx::stdx::string_view,T>::value,T>::type get(bsoncxx::stdx::string_view def = {}) {
+  template <class T> typename std::enable_if<std::is_same<bsoncxx::stdx::string_view,T>::value,T>::type get(bsoncxx::stdx::string_view def = {}) const {
     switch (type_) {
       case type::doc_elem:
         switch (value_.doc_elem.type()) {
@@ -228,7 +228,7 @@ class LooseElement {
     return def;
   }
 
-  template <class T> typename std::enable_if<std::is_arithmetic<T>::value,T>::type get(T def = {}) {
+  template <class T> typename std::enable_if<std::is_arithmetic<T>::value,T>::type get(T def = {}) const {
     switch (type_) {
       case type::doc_elem:
         return to_number<T>(value_.doc_elem,def);
