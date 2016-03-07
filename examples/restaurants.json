@@ -48,13 +48,15 @@
         "find":{
           "weight":1.0,
           "patterns":[
-            "criteria":{
-              "name":"$any"
-            },
-            "projection":{
-              "address":1
-            },
-            "limit":1000
+            {
+              "criteria":{
+                "name":"$any"
+              },
+              "projection":{
+                "address":1
+              },
+              "limit":1000
+            }
           ]
         }
       }

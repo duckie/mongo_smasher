@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <chrono>
 #include <cppformat/format.h>
+#include <type_traits>
 
 namespace mongo_smasher {
 
@@ -61,6 +62,7 @@ inline bsoncxx::stdx::string_view to_str_view(bsoncxx::array::element const& ele
   return elem.get_utf8().value;
 }
 
+
 //
 // Interpret an element as a string
 //
@@ -106,19 +108,118 @@ template <class T> std::string to_string(T const& elem) {
   };
 }
 
-// Extracts either int32 or int64 to the output type
+
+template <class T, class Element>  
+T to_number(Element element,T default_value) {
+    switch (element.type()) {
+    case bsoncxx::type::k_int64:
+      return static_cast<T>(element.get_int64().value);
+    case bsoncxx::type::k_int32:
+      return static_cast<T>(element.get_int32().value);
+    case bsoncxx::type::k_double:
+      return static_cast<T>(element.get_double().value);
+    default:
+      break;
+    }
+    return default_value;
+}
+
 template <class T>  
 T to_int(bsoncxx::document::view const& view, bsoncxx::stdx::string_view name, T default_value) {
-  auto view_it = view.find(name);
-  if (view_it != view.end()) {
-    auto elem = *view_it;
-    if (elem.type() == bsoncxx::type::k_int64)
-      return static_cast<T>(elem.get_int64().value);
-    else if (elem.type() == bsoncxx::type::k_int32)
-      return static_cast<T>(elem.get_int32().value);
+  auto element = view.find(name);
+  if (element != view.end()) {
+    return to_number<T>(*element,default_value);
   }
   return default_value;
 }
+
+class LooseDocumentView {
+  enum class type { null, doc_elem, array_elem, document, array };
+  union value {
+    value();
+    ~value() = default;
+    bsoncxx::document::view doc;
+    bsoncxx::array::view array;
+    bsoncxx::document::element doc_elem;
+    bsoncxx::array::element array_elem;
+  };
+
+  type type_;
+  value value_;
+
+  void clear();
+
+ public:
+  LooseDocumentView();
+  LooseDocumentView(bsoncxx::document::view view);
+  LooseDocumentView(bsoncxx::array::view view);
+  LooseDocumentView(bsoncxx::document::element element);
+  LooseDocumentView(bsoncxx::array::element element);
+  LooseDocumentView(LooseDocumentView const&);
+  LooseDocumentView(LooseDocumentView &&);
+  LooseDocumentView& operator=(LooseDocumentView const&);
+  LooseDocumentView& operator=(LooseDocumentView &&);
+  ~LooseDocumentView();
+
+  LooseDocumentView operator[] (char const* key);
+  LooseDocumentView operator[] (bsoncxx::stdx::string_view key);
+  LooseDocumentView operator[] (std::string const& key);
+  template <size_t Size> inline LooseDocumentView operator[] (char const (&key)[Size]) {
+    return (*this)[bsoncxx::stdx::string_view{key,Size}];
+  }
+
+  LooseDocumentView operator[] (size_t index);
+
+  template <class T> typename std::enable_if<std::is_same<std::string,T>::value,T>::type get(std::string def = {}) {
+    switch (type_) {
+      case type::doc_elem:
+        return to_string(value_.doc_elem);
+      case type::array_elem:
+        return to_string(value_.array_elem);
+        break;
+      default:
+        break;
+    }
+    return def;
+  }
+
+  template <class T> typename std::enable_if<std::is_same<bsoncxx::stdx::string_view,T>::value,T>::type get(bsoncxx::stdx::string_view def = {}) {
+    switch (type_) {
+      case type::doc_elem:
+        switch (value_.doc_elem.type()) {
+          case bsoncxx::type::k_utf8:
+            return value_.doc_elem.get_utf8().value;
+          default:
+            break;
+        }
+        break;
+      case type::array_elem:
+        switch (value_.array_elem.type()) {
+          case bsoncxx::type::k_utf8:
+            return value_.array_elem.get_utf8().value;
+          default:
+            break;
+        }
+        break;
+      default:
+        break;
+    }
+    return def;
+  }
+
+  template <class T> typename std::enable_if<std::is_arithmetic<T>::value,T>::type get(T def = {}) {
+    switch (type_) {
+      case type::doc_elem:
+        return to_number<T>(value_.doc_elem,def);
+      case type::array_elem:
+        return to_number<T>(value_.array_elem,def);
+        break;
+      default:
+        break;
+    }
+    return def;
+  }
+};
 
 std::chrono::high_resolution_clock::time_point parse_iso_date(std::string const& date);
 std::chrono::high_resolution_clock::time_point parse_iso_date(bsoncxx::stdx::string_view date);

@@ -1,5 +1,4 @@
 #include "randomizer.h"
-#include <bsoncxx/stdx/make_unique.hpp>
 #include <bsoncxx/builder/basic/array.hpp>
 #include <bsoncxx/types/value.hpp>
 #include <sstream>
@@ -15,7 +14,6 @@ namespace bsx = bsoncxx;
 using namespace std;
 using namespace std::chrono;
 using str_view = bsx::stdx::string_view;
-using bsx::stdx::make_unique;
 
 namespace mongo_smasher {
 
@@ -295,35 +293,30 @@ std::unique_ptr<ValuePusher> Randomizer::make_value_pusher(str_view name) {
   std::unique_ptr<ValuePusher> new_value_pusher;
   auto value_it = values_.find(name);
   if (value_it != end(values_)) {
-    auto &value = *value_it;
-    auto type = to_str_view(value["type"]);
+    LooseDocumentView value(*value_it);
+    auto type = value["type"].get<bsoncxx::stdx::string_view>();
     if (name.empty() || type.empty()) {
       log(log_level::warning, "Neither name or type of a generator can be empty.\n");
       throw exception();
     }
 
     if (type == str_view("string")) {
-      int min = value["min_size"].get_int32();
-      int max = value["max_size"].get_int32();
-      new_value_pusher = make_unique<StringPusher<decltype(gen_)>>(gen_, static_cast<size_t>(min),
-                                                                   static_cast<size_t>(max));
+      new_value_pusher = make_unique<StringPusher<decltype(gen_)>>(gen_, value["min"].get<size_t>(),
+                                                                   value["max"].get<size_t>());
+
     } else if (type == str_view("ascii_string")) {
-      int min = value["min_size"].get_int32();
-      int max = value["max_size"].get_int32();
       new_value_pusher = make_unique<AsciiStringPusher<decltype(gen_)>>(
-          gen_, static_cast<size_t>(min), static_cast<size_t>(max));
+          gen_, value["min_size"].get<size_t>(), value["max_size"].get<size_t>());
     } else if (type == str_view("int")) {
-      int min = value["min"].get_int32();
-      int max = value["max"].get_int32();
-      new_value_pusher = make_unique<IntPusher<decltype(gen_)>>(gen_, min, max);
+      new_value_pusher = make_unique<IntPusher<decltype(gen_)>>(gen_, value["min_size"].get<int>(),
+                                                                value["max_size"].get<int>());
     } else if (type == str_view("date")) {
-      auto min = parse_iso_date(value["min"].get_utf8().value);
-      auto max = parse_iso_date(value["max"].get_utf8().value);
+      auto min = parse_iso_date(value["min"].get<bsoncxx::stdx::string_view>());
+      auto max = parse_iso_date(value["max"].get<bsoncxx::stdx::string_view>());
       new_value_pusher = make_unique<DatePusher<decltype(gen_)>>(gen_, min, max);
     } else if (type == str_view("double")) {
-      double min = value["min"].get_double();
-      double max = value["max"].get_double();
-      new_value_pusher = make_unique<DoublePusher<decltype(gen_)>>(gen_, min, max);
+      new_value_pusher = make_unique<DoublePusher<decltype(gen_)>>(
+          gen_, value["min_size"].get<double>(), value["max_size"].get<double>());
     } else if (type == str_view("incremental_id")) {
       new_value_pusher = make_unique<IncrementalIDPusher>();
     } else if (type == str_view("pick")) {
