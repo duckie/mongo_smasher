@@ -137,6 +137,20 @@ T to_int(bsoncxx::document::view const& view, bsoncxx::stdx::string_view name, T
   return default_value;
 }
 
+//
+// LooseElement exposes document and array views without exceptions
+//
+// This class is a helper to read documents from BSON documents or arrays
+// without the struggle of checking existence of all keys 
+// and indexes along the path and types by hand.
+// 
+// Example: to get a double with 1. as a default value you could write
+// 
+// double v = LooseElement(view)["config"]["weight"][0].get<double>(1.)
+//
+// If the path config.weight.0 exists and is a double value, you get this value
+// otherwise you get 1.
+//
 class LooseElement {
   enum class type { null, doc_elem, array_elem, document, array };
   union value {
