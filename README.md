@@ -64,7 +64,11 @@ The generated executable is found as `mongo_smasher/build/src/mongo_smasher`. Op
             "name":"At $firstname $lastname's $cuisine $estaurant_seed",
             "restaurant_id":"$id"
           },
-          "bulk_size":1000
+          "actions":{
+            "insert":{
+              "bulk_size":1000
+            }
+          }
         }
       }
     }
@@ -74,3 +78,7 @@ Use `--help` switch to get some details about command line options.
 # Contribute
 
 The tool is in very active development. Any contribution is welcome.
+
+Some planned features:
+- Updates and finds
+- Oplog replayer 
