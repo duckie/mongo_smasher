@@ -6,11 +6,11 @@
 
 namespace mongo_smasher {
 
-CollectionHub::CollectionHub(std::string db_uri)
-    : db_conn_{mongocxx::uri{db_uri}} {
+CollectionHub::CollectionHub(std::string db_uri) : db_conn_{mongocxx::uri{db_uri}} {
 }
 
-mongocxx::collection& CollectionHub::get_collection(std::string const& db_name, std::string const& collection_name) {
+mongocxx::collection& CollectionHub::get_collection(std::string const& db_name,
+                                                    std::string const& collection_name) {
   std::string full_name = fmt::format("{}/{}", collection_name, collection_name);
   auto col_it = collections_.find(full_name);
   if (end(collections_) == col_it) {

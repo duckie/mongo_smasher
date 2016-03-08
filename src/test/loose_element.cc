@@ -11,7 +11,7 @@ using namespace std;
 using namespace mongo_smasher;
 using namespace bsoncxx;
 
-TEST_CASE("Document model","[loose_model]") {
+TEST_CASE("Document model", "[loose_model]") {
   document::value model = bsoncxx::from_json(R"json({"str":"Roger","int":1,"double":1.0})json");
   LooseElement model_view(model.view());
 
@@ -19,7 +19,7 @@ TEST_CASE("Document model","[loose_model]") {
   REQUIRE(model_view["str"].get<stdx::string_view>() == stdx::string_view("Roger"));
   REQUIRE(model_view["int"].get<int>() == 1);
   REQUIRE(model_view["double"].get<double>() == 1.);
-  
+
   // Non existing keys
   REQUIRE(model_view["str2"].get<std::string>() == "");
   REQUIRE(model_view["str2"].get<stdx::string_view>() == stdx::string_view(""));
@@ -33,7 +33,7 @@ TEST_CASE("Document model","[loose_model]") {
   REQUIRE(model_view["double2"].get<double>(1.) == 1.);
 }
 
-TEST_CASE("Array model","[loose_model]") {
+TEST_CASE("Array model", "[loose_model]") {
   document::value model = bsoncxx::from_json(R"json({"array":["Roger",1,1.0]})json");
   LooseElement root_view(model.view());
   LooseElement model_view(root_view["array"]);
@@ -55,4 +55,3 @@ TEST_CASE("Array model","[loose_model]") {
   REQUIRE(model_view[3].get<int>(1) == 1);
   REQUIRE(model_view[3].get<double>(1.) == 1.);
 }
-

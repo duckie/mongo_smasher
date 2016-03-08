@@ -14,8 +14,7 @@ CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_
       queue_{queue},
       randomizer_(model["values"].get_document().view(), root_path),
       model_(model),
-      idle_time_ {0}
-      {
+      idle_time_{0} {
 }
 
 // CollectionProducer::CollectionProducer(CollectionProducer&& other) : queue_(other.queue_),
@@ -40,8 +39,8 @@ void CollectionProducer::run() {
   for (auto collection_element : model_["collections"].get_document().view()) {
     log(log_level::debug, "Registering %s\n", collection_element.key().data());
     insert_units.emplace_back(randomizer_, queue_, collection_element.key(),
-                       collection_element.get_document().view(),
-                       weights[collection_element.key()] / max_weight);
+                              collection_element.get_document().view(),
+                              weights[collection_element.key()] / max_weight);
   }
 
   while (pilot_.run) {

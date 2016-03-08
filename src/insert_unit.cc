@@ -15,16 +15,17 @@ std::regex value_regex{"\\$[a-zA-Z0-9_-]+"};
 }
 
 InsertUnit::InsertUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &queue,
-                               bsoncxx::stdx::string_view name,
-                               bsoncxx::document::view const &collection, double normalized_weight)
+                       bsoncxx::stdx::string_view name, bsoncxx::document::view const &collection,
+                       double normalized_weight)
     : randomizer_{randomizer},
       queue_{queue},
       name_{name},
       model_{collection["schema"]},
       weight_{normalized_weight},
-      bulk_size_{LooseElement(collection)["actions"]["insert"]["bulk_size"].get<size_t>(1)}{
+      bulk_size_{LooseElement(collection)["actions"]["insert"]["bulk_size"].get<size_t>(1)} {
   bulk_docs_.reserve(bulk_size_);
-  log(log_level::debug,"Insert unit for \"%s\" created with bulk_size=%lu, weight=%f.\n", name.data(), bulk_size_, weight_);
+  log(log_level::debug, "Insert unit for \"%s\" created with bulk_size=%lu, weight=%f.\n",
+      name.data(), bulk_size_, weight_);
 }
 
 KeyParams &InsertUnit::get_key_params(bsoncxx::stdx::string_view key) {
@@ -78,10 +79,10 @@ ValueParams &InsertUnit::get_value_params(bsoncxx::stdx::string_view value) {
       auto pusher = randomizer_.make_value_pusher(content);
       if (pusher) {
         log(log_level::debug, "Value \"%s\" registered as a simple value.\n", value.data());
-        std::tie(value_it, inserted) = value_params_.emplace(
-            value,
-            ValueParams{value_category::simple,{}});
-        value_it->second.values.emplace_back(TokenParams{token_type::value, content.to_string(), std::move(pusher)});
+        std::tie(value_it, inserted) =
+            value_params_.emplace(value, ValueParams{value_category::simple, {}});
+        value_it->second.values.emplace_back(
+            TokenParams{token_type::value, content.to_string(), std::move(pusher)});
       }
     } else {
       // Try a search to see if it is a compound
@@ -95,15 +96,16 @@ ValueParams &InsertUnit::get_value_params(bsoncxx::stdx::string_view value) {
         auto pusher = randomizer_.make_value_pusher(content);
         if (pusher) {
           // Ok this a interpretable key
-          values_sequence.emplace_back(TokenParams{token_type::stale, base_match.prefix().str(), nullptr});
-          values_sequence.emplace_back(TokenParams{token_type::value, base_match[0].str().substr(1),
-                                       std::move(pusher)});
+          values_sequence.emplace_back(
+              TokenParams{token_type::stale, base_match.prefix().str(), nullptr});
+          values_sequence.emplace_back(
+              TokenParams{token_type::value, base_match[0].str().substr(1), std::move(pusher)});
           ++nb_found;
         } else {
           // Key not referenced, just a string then
           // Not bad to add strings here because it is a one time cost
-          values_sequence.emplace_back(TokenParams{token_type::stale,
-                                       base_match.prefix().str() + base_match[0].str(), nullptr});
+          values_sequence.emplace_back(TokenParams{
+              token_type::stale, base_match.prefix().str() + base_match[0].str(), nullptr});
         }
         buffer = base_match.suffix().str();
       }
@@ -121,9 +123,10 @@ ValueParams &InsertUnit::get_value_params(bsoncxx::stdx::string_view value) {
     if (!inserted) {
       // Finally it is a stale one
       log(log_level::debug, "Value \"%s\" registered as a stale value.\n", value.data());
-      std::tie(value_it, inserted) = value_params_.emplace(
-          value, ValueParams{value_category::stale, {}});
-      value_it->second.values.emplace_back(TokenParams{token_type::stale, value.to_string(), nullptr});
+      std::tie(value_it, inserted) =
+          value_params_.emplace(value, ValueParams{value_category::stale, {}});
+      value_it->second.values.emplace_back(
+          TokenParams{token_type::stale, value.to_string(), nullptr});
     }
   }
   return value_it->second;
@@ -177,19 +180,19 @@ void InsertUnit::process_element(T const &element, bsoncxx::builder::stream::arr
 }
 
 void InsertUnit::process_element(bsoncxx::array::element const &element,
-                                     bsx::builder::stream::array &ctx) {
+                                 bsx::builder::stream::array &ctx) {
   return process_element<bsoncxx::array::element>(element, ctx);
 }
 
 void InsertUnit::process_element(bsoncxx::document::element const &element,
-                                     bsx::builder::stream::array &ctx) {
+                                 bsx::builder::stream::array &ctx) {
   return process_element<bsoncxx::document::element>(element, ctx);
 }
 
 void InsertUnit::process_element(bsoncxx::document::element const &element,
-                                     bsx::builder::stream::document &ctx) {
+                                 bsx::builder::stream::document &ctx) {
   auto const &key = element.key();
-  auto& key_type = get_key_params(key);
+  auto &key_type = get_key_params(key);
 
   // Check if key should be inserted
   bool insert = true;

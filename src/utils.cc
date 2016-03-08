@@ -59,7 +59,7 @@ LooseElement::LooseElement(LooseElement const& other) {
   }
 }
 
-LooseElement::LooseElement(LooseElement && other) {
+LooseElement::LooseElement(LooseElement&& other) {
   type_ = other.type_;
   switch (type_) {
     case type::null:
@@ -85,7 +85,7 @@ LooseElement& LooseElement::operator=(LooseElement const& other) {
   return *this;
 }
 
-LooseElement& LooseElement::operator=(LooseElement && other) {
+LooseElement& LooseElement::operator=(LooseElement&& other) {
   clear();
   new (this) LooseElement(std::move(other));
   return *this;
@@ -203,8 +203,5 @@ LooseElement LooseElement::operator[](size_t index) const {
   }
   return {};
 }
-
-
-
 
 }  // namespace mongo_smasher
