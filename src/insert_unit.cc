@@ -22,8 +22,9 @@ InsertUnit::InsertUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &
       name_{name},
       model_{collection["schema"]},
       weight_{normalized_weight},
-      bulk_size_{LooseElement(collection)["bulk_size"].get<size_t>()}{
+      bulk_size_{LooseElement(collection)["actions"]["insert"]["bulk_size"].get<size_t>(1)}{
   bulk_docs_.reserve(bulk_size_);
+  log(log_level::debug,"Insert unit for \"%s\" created with bulk_size=%lu, weight=%f.\n", name.data(), bulk_size_, weight_);
 }
 
 KeyParams &InsertUnit::get_key_params(bsoncxx::stdx::string_view key) {

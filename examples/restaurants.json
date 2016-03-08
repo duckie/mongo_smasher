@@ -42,13 +42,12 @@
           "weight":1.0
         },
         "update":{
-          "weight":1.0,
           "patterns":[]
         },
         "find":{
-          "weight":1.0,
           "patterns":[
             {
+              "weight":1.0,
               "criteria":{
                 "name":"$any"
               },

@@ -24,14 +24,14 @@ CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_
 //}
 
 void CollectionProducer::run() {
-  std::vector<InsertUnit> units;
+  std::vector<InsertUnit> insert_units;
 
   // Compute weight ratio to apply
   double max_weight{0.};
   std::map<string_view, double> weights;
   for (auto collection_element : model_["collections"].get_document().view()) {
     auto collection_view = collection_element.get_document().view();
-    double weight = LooseElement(collection_view)["weight"].get<double>(1.);
+    double weight = LooseElement(collection_view)["actions"]["insert"]["weight"].get<double>(1.);
     if (weight < 0.) weight = 0.;
     if (max_weight < weight) max_weight = weight;
     weights.emplace(collection_element.key(), weight);
@@ -39,14 +39,14 @@ void CollectionProducer::run() {
 
   for (auto collection_element : model_["collections"].get_document().view()) {
     log(log_level::debug, "Registering %s\n", collection_element.key().data());
-    units.emplace_back(randomizer_, queue_, collection_element.key(),
+    insert_units.emplace_back(randomizer_, queue_, collection_element.key(),
                        collection_element.get_document().view(),
                        weights[collection_element.key()] / max_weight);
   }
 
   while (pilot_.run) {
     typename DocumentBatch::queue_t::duration_t idle_time{};
-    for (auto& unit : units) {
+    for (auto& unit : insert_units) {
       idle_time += unit.process_tick();
     }
     idle_time_ += idle_time.count();
