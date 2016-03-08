@@ -22,6 +22,15 @@ endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 configure_file(${PROJECT_SOURCE_DIR}/cmake/BuildConfig.json.in ${PROJECT_SOURCE_DIR}/BuildConfig.json)
 
+# clang-format
+file(GLOB_RECURSE srcs_to_format src/*.cc)
+file(GLOB_RECURSE header_to_format src/*.h)
+add_custom_target(format
+    clang-format -i ${srcs_to_format} ${headers_to_format}
+    VERBATIM
+)
+
+
 # Main source directory
 enable_testing()
 add_subdirectory (src)
