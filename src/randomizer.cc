@@ -186,6 +186,10 @@ class DatePusher : public ValuePusher {
 };
 }
 
+Randomizer::Randomizer() :
+  values_ {}, gen_(rd_()), system_root_path_ {}
+{}
+
 Randomizer::Randomizer(bsoncxx::document::view model, str_view root_path)
     : values_(model), gen_(rd_()), system_root_path_(root_path.data()) {
   using bsx::document::view;
@@ -282,6 +286,10 @@ std::unique_ptr<RangeSizeGenerator> Randomizer::make_range_size_generator(
 
 double Randomizer::existence_draw() {
   return key_existence_(gen_);
+}
+
+size_t Randomizer::index_draw(size_t size) {
+  return size ? std::uniform_int_distribution<size_t>{0,size-1}(gen_) : 0;
 }
 
 std::unique_ptr<ValuePusher> Randomizer::make_value_pusher(str_view name) {

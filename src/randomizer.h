@@ -34,8 +34,8 @@ struct ValueList {
 //
 // Random complexity is all concentrated in that object
 // responsible for consuming its pseudo-random generator.
-// This generators can consumed by ValuePicker objects, thus
-// ValuePickers are built by the Randomizer.
+// This generator can be consumed by ValuePushers objects, thus
+// ValuePushers are built by the Randomizer.
 // 
 // Randomizer is responsible for parsing and caching $root_object.values
 //
@@ -52,7 +52,18 @@ class Randomizer {
   std::map<bsoncxx::stdx::string_view, ValueList> value_lists_;
 
  public:
+  // Basic ctor, equivalent to having an empty "values" array
+  Randomizer();
+
+  // 
+  // Builds a randomizer from a config ffile
+  //
+  // @param view is a view of the "values" array extracted from the config file
+  // @param root_path is the directory containing said file
+  //
   Randomizer(bsoncxx::document::view, bsoncxx::stdx::string_view root_path);
+
+  // move ctor
   Randomizer(Randomizer&&) = default;
   ~Randomizer() = default;
 
@@ -60,6 +71,14 @@ class Randomizer {
   // to implement a Bernouilli baw based on a weight  does not
   // know off.
   double existence_draw();
+
+  //
+  // Returns a random index between in [0,size[
+  //
+  // @param size is the maximum value the index could take plus 1. Supposed to 
+  //             be the size of a random access container
+  //
+  size_t index_draw(size_t size);
 
   // Interprets a string as an array range (ex: "0:10") and creates the matching
   // proxy to generate a size in that range

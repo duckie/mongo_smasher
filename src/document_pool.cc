@@ -27,6 +27,7 @@ DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
     // Maintain a connection for this thread only
     client db_conn{uri{db_uri}};
     auto db_col = db_conn[db_name][collection_name];
+    log(log_level::info, "Start retrieval thread.\n");
     for (;;) {
       ThreadCommand command{this->retrieve_queue_.pop()};
       if (thread_command_type::stop == command.type) break;
@@ -64,12 +65,21 @@ DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
         retrieval_thread_working_ = false;
       }
     }
+    log(log_level::info, "Stop retrieval thread.\n");
   });
+
+  // Push a first retrivel
+  retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
 }
 
 DocumentPool::~DocumentPool() {
   retrieve_queue_.push(ThreadCommand{thread_command_type::stop, {}});
   retrieval_thread_.join();
+}
+
+std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
+  //if (
+  return {};
 }
 
 }  // namespace document_pool
