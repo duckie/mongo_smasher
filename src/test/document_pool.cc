@@ -32,17 +32,14 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
   d1 << "value" << 1;
   collection.insert_one(d1.view());
 
-
   // Create a document pool
   Randomizer randomizer;
   document_pool::DocumentPool pool {randomizer, default_uri, db_name, col_name, document_pool::update_method::latest, 1, 1};
-  std::this_thread::sleep_for(chrono::seconds {1});
+  std::this_thread::sleep_for(chrono::milliseconds {100});
 
   auto doc = pool.draw_document();
   REQUIRE(doc);
-    
-    
-
+  REQUIRE(LooseElement(doc->view())["value"].get<int>() == 1);
 
 
   //collection.drop();

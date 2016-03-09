@@ -59,7 +59,7 @@ DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
             db_name.data(), collection_name.data());
       } else {
         documents_mutex_.lock();
-        this->reused_documents_ = 0u;
+        this->nb_used_ = 0u;
         std::swap(new_documents, this->documents_);
         documents_mutex_.unlock();
         retrieval_thread_working_ = false;
@@ -78,8 +78,23 @@ DocumentPool::~DocumentPool() {
 }
 
 std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
-  //if (
-  return {};
+  size_t index = randomizer_.index_draw(size_);
+  std::shared_ptr<bsoncxx::document::value> result {};
+
+  documents_mutex_.lock_shared();
+  if (documents_.size()) {
+    auto& doc = documents_[index];
+    result = doc.value;
+    ++doc.nb_used;
+    if (!retrieval_thread_working_) {
+      ++nb_used_;
+      if (reuse_factor_ * size_ < nb_used_)
+        retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
+    }
+  }
+  documents_mutex_.unlock_shared();
+
+  return result; 
 }
 
 }  // namespace document_pool

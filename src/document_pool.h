@@ -54,8 +54,8 @@ class DocumentPool {
   // Number of times a document must be used before being discarded
   size_t const reuse_factor_;
 
-  // Number of documents that actually reached the reuse limit
-  std::atomic<size_t> reused_documents_; 
+  // Number of documents consumed : a single document may be accounted multiple times here
+  std::atomic<size_t> nb_used_; 
 
   // This queue_ is used by the retrieval thread to now when it is supposed
   // to start a new retrieval of if it should just stop
