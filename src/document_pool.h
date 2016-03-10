@@ -85,6 +85,24 @@ class DocumentPool {
   std::shared_ptr<bsoncxx::document::value> draw_document();
 };
 
+//
+// The hub stores one DocumentPool per collection
+class Hub {
+  Randomizer& randomizer_;
+  update_method update_method_;
+  std::string const db_uri_;
+  std::string const db_name_;
+  size_t const size_;
+  size_t const reuse_factor_;
+  std::map<std::string,DocumentPool> pools_;
+
+ public:
+  Hub(Randomizer& randomizer, std::string const& db_uri, std::string const& db_name, 
+               update_method method, size_t size, size_t reuse_factor);
+
+  DocumentPool& get_pool(std::string const& col_name);
+};
+
 } // namespace document_pool
 
 template <>

@@ -1,4 +1,5 @@
 #include "document_pool.h"
+#include <tuple>
 #include <bsoncxx/builder/basic/document.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/builder/stream/array.hpp>
@@ -104,6 +105,19 @@ std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
   }
 
   return result; 
+}
+
+Hub::Hub(Randomizer& randomizer, std::string const& db_uri, std::string const& db_name, 
+               update_method method, size_t size, size_t reuse_factor) 
+  : randomizer_{randomizer}, db_uri_{db_uri}, db_name_{db_name}, update_method_{method}, size_{size}, reuse_factor_{reuse_factor}
+{}
+
+DocumentPool& Hub::get_pool(std::string const& col_name) {
+  auto pool_it = pools_.find(col_name);
+  if (end(pools_) == pool_it) {
+    tie(pool_it, ignore) = pools_.emplace(piecewise_construct, forward_as_tuple(col_name), forward_as_tuple(randomizer_, db_uri_, db_name_, col_name, update_method_, size_, reuse_factor_));
+  }
+  return pool_it->second;
 }
 
 }  // namespace document_pool
