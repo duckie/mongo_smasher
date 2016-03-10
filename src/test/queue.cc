@@ -1,8 +1,8 @@
-#include <catch.hpp>
-#include "../queue.h"
-#include <thread>
-#include <future>
 #include "../logger.h"
+#include "../queue.h"
+#include <catch.hpp>
+#include <future>
+#include <thread>
 
 using namespace std;
 using namespace mongo_smasher;

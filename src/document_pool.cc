@@ -27,7 +27,7 @@ DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
     // Maintain a connection for this thread only
     client db_conn{uri{db_uri}};
     auto db_col = db_conn[db_name][collection_name];
-    log(log_level::info, "Start retrieval thread.\n");
+    log(log_level::debug, "Start retrieval thread.\n");
     for (;;) {
       ThreadCommand command{this->retrieve_queue_.pop()};
       if (thread_command_type::stop == command.type) break;
@@ -65,7 +65,7 @@ DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
         retrieval_thread_working_ = false;
       }
     }
-    log(log_level::info, "Stop retrieval thread.\n");
+    log(log_level::debug, "Stop retrieval thread.\n");
   });
 
   // Push a first retrivel
@@ -81,18 +81,24 @@ std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
   size_t index = randomizer_.index_draw(size_);
   std::shared_ptr<bsoncxx::document::value> result {};
 
-  documents_mutex_.lock_shared();
-  if (documents_.size()) {
-    auto& doc = documents_[index];
-    result = doc.value;
-    ++doc.nb_used;
-    if (!retrieval_thread_working_) {
-      ++nb_used_;
-      if (reuse_factor_ * size_ < nb_used_)
-        retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
+  if(documents_mutex_.try_lock_shared()) {
+    if (documents_.size()) {
+      auto& doc = documents_[index];
+      result = doc.value;
+      ++doc.nb_used;
+      documents_mutex_.unlock_shared();
+      if (!retrieval_thread_working_) {
+        ++nb_used_;
+        // Do not use <= or you would deadlock by spamming the retrieval
+        // thread with multiple requests
+        if (reuse_factor_ * size_ == nb_used_)
+          retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
+      }
+    }
+    else {
+      documents_mutex_.unlock_shared();
     }
   }
-  documents_mutex_.unlock_shared();
 
   return result; 
 }
