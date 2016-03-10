@@ -20,7 +20,6 @@
 #include "insert_unit.h"
 #include "collection_consumer.h"
 #include "collection_producer.h"
-#include "document_pool.h"
 #include <chrono>
 #include <thread>
 #include <sstream>
@@ -80,14 +79,14 @@ void run_stream(Config const& config) {
 
   ThreadPilot pilot{};
   DocumentBatch::queue_t queue{100};
-  document_pool::Hub pool_hub{randomizer, db_uri, document_pool::update_method::latest, 10000, 1000};
 
   // Create producers
   std::list<ThreadRunner<CollectionProducer>> producers;
   for (size_t i = 0; i < config.nb_producers; ++i) {
-    producers.emplace_back(pilot, queue, pool_hub, view, root_path.data());
+    producers.emplace_back(pilot, queue, view, root_path.data());
   }
 
+  // Create consumers
   std::list<ThreadRunner<CollectionConsumer>> consumers;
   for (size_t i = 0; i < config.nb_consumers; ++i) {
     consumers.emplace_back(pilot, queue, db_uri);

@@ -6,9 +6,6 @@
 #include <bsoncxx/document/value.hpp>
 #include <mongocxx/cursor.hpp>
 #include <mongocxx/client.hpp>
-#include <boost/thread/shared_mutex.hpp>
-#include <boost/thread/locks.hpp>
-#include <boost/thread/lock_types.hpp>
 #include <memory>
 
 namespace mongo_smasher {
@@ -21,12 +18,14 @@ enum class thread_command_type : size_t { retrieve, stop };
 
 struct ThreadCommand {
   thread_command_type type;
+  std::string db;
   std::string collection;
 };
 
-struct Document {
+struct Documents {
+  using document_list_t = std::vector<std::shared_ptr<bsoncxx::document::value>>;
   size_t nb_used;
-  std::shared_ptr<bsoncxx::document::value> value;
+  document_list_t values;
 };
 
 //
@@ -36,9 +35,6 @@ struct Document {
 // about existing documents. The goal here is to keep a register of existing documents
 // updated regularly but not too much as not to impair real tests. Capacity and
 // update method may be chosen by user
-//
-// For current implementation, each collection get its own thread 
-// A better use case would be to merge all update requests here, 
 //
 class DocumentPool {
   // Shared randomizer
@@ -53,19 +49,16 @@ class DocumentPool {
   // Number of times a document must be used before being discarded
   size_t const reuse_factor_;
 
-  // Number of documents consumed : a single document may be accounted multiple times here
-  std::atomic<size_t> nb_used_; 
-
   // This queue_ is used by the retrieval thread to know when it is supposed
   // to start a new retrieval or if it should just stop
   Queue<ThreadCommand> retrieve_queue_;
 
   // Mutex to protect the pool between the retrieval thread 
   // and the document pool
-  boost::shared_mutex documents_mutex_;
+  std::mutex documents_mutex_;
 
   //
-  std::vector<Document> documents_;
+  std::map<std::string, Documents> documents_;
 
   //
   std::thread retrieval_thread_;
@@ -75,50 +68,12 @@ class DocumentPool {
 
  public:
   // Ctor launches the retrieval thread
-  DocumentPool(Randomizer& randomizer, std::string const& db_uri, std::string const& db_name,
-                std::string const& collection_name,
-               update_method method, size_t size, size_t reuse_factor);
+  DocumentPool(Randomizer& randomizer, std::string const& db_uri, update_method method, size_t size, size_t reuse_factor);
 
   ~DocumentPool();
 
   // Selects randomly a document and counts the retrieval, thus not const
-  std::shared_ptr<bsoncxx::document::value> draw_document();
-};
-
-//
-// The hub stores one DocumentPool per collection
-//
-// This a shared object, thus must be synchronized. To avoid too much locks, 
-// consumers stores a @HubCache
-//
-class Hub {
-  Randomizer& randomizer_;
-  update_method update_method_;
-  std::string const db_uri_;
-  size_t const size_;
-  size_t const reuse_factor_;
-  std::map<std::string,DocumentPool> pools_;
-  std::mutex pools_mutex_;
-
- public:
-  Hub(Randomizer& randomizer, std::string const& db_uri, 
-               update_method method, size_t size, size_t reuse_factor);
-
-  DocumentPool& get_pool(std::string const& db_name, std::string const& col_name);
-};
-
-// 
-// HubCache is stored in each producer thread to access DocumentPools
-//
-// To avoid a read lock useless unless at system startup
-//
-class HubCache {
-  Hub& hub_;
-  std::map<std::string,DocumentPool*> pools_;
-
- public:
-  HubCache(Hub& hub);
-  DocumentPool& get_pool(std::string const& db_name, std::string const& col_name);
+  std::shared_ptr<bsoncxx::document::value> draw_document(std::string const& db_name, std::string const& col_name);
 };
 
 } // namespace document_pool

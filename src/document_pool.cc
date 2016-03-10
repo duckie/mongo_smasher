@@ -14,7 +14,6 @@ namespace mongo_smasher {
 namespace document_pool {
 
 DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
-                           std::string const& db_name, std::string const& collection_name,
                            update_method method, size_t size, size_t reuse_factor)
     : randomizer_{randomizer},
       update_method_{method},
@@ -23,54 +22,59 @@ DocumentPool::DocumentPool(Randomizer& randomizer, std::string const& db_uri,
       reuse_factor_{reuse_factor},
       retrieval_thread_working_{false} {
   // Thread must copy data not kept by parent object
-  retrieval_thread_ = thread([this, db_uri, db_name, collection_name]() {
+  retrieval_thread_ = thread([this, db_uri]() {
 
     // Maintain a connection for this thread only
     client db_conn{uri{db_uri}};
-    auto db_col = db_conn[db_name][collection_name];
+    std::map<std::string,mongocxx::collection> dbs;
     log(log_level::debug, "Start retrieval thread.\n");
     for (;;) {
       ThreadCommand command{this->retrieve_queue_.pop()};
       if (thread_command_type::stop == command.type) break;
 
-      std::vector<Document> new_documents;
+      std::string key = fmt::format("{}/{}", command.db, command.collection);
+
+      // Get database link
+      auto db_it = dbs.find(key);
+      if (end(dbs) == db_it) {
+        tie(db_it,ignore) = dbs.insert(make_pair(key, db_conn[command.db][command.collection]));
+      }
+      auto& db = db_it->second;
+
+
+      // Get documents
+      Documents::document_list_t new_documents;
       new_documents.reserve(this->size_);
-      // Get the documents
       if (update_method_ == update_method::latest) {
         using namespace bsoncxx::builder;
         options::find options{};
         options.sort(stream::document{} << "_id" << -1 << stream::finalize);
         options.limit(this->size_);
 
-        auto cursor = db_col.find({}, options);
+        auto cursor = db.find({}, options);
         for (auto&& doc_view : cursor) {
-          new_documents.emplace_back(
-              Document{0u, std::shared_ptr<document::value>(new document::value(doc_view))});
+          new_documents.emplace_back(new document::value(doc_view));
         }
       } else if (update_method_ == update_method::sample) {
-        auto cursor = db_col.aggregate(pipeline{}.sample(this->size_));
+        auto cursor = db.aggregate(pipeline{}.sample(this->size_));
         for (auto&& doc_view : cursor) {
-          new_documents.emplace_back(
-              Document{0u, std::shared_ptr<document::value>(new document::value(doc_view))});
+          new_documents.emplace_back(new document::value(doc_view));
         }
       }
 
       if (0 == new_documents.size()) {
         log(log_level::warning, "Document pool for %s.%s failed to retrieve any documents.",
-            db_name.data(), collection_name.data());
+            command.db.data(), command.collection.data());
       } else {
-        documents_mutex_.lock();
-        this->nb_used_ = 0u;
-        std::swap(new_documents, this->documents_);
-        documents_mutex_.unlock();
+        lock_guard<mutex> lock(documents_mutex_);
+        auto& current_documents = documents_[key];
+        current_documents.nb_used = 0;
+        std::swap(new_documents, current_documents.values);
         retrieval_thread_working_ = false;
       }
     }
     log(log_level::debug, "Stop retrieval thread.\n");
   });
-
-  // Push a first retrivel
-  retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
 }
 
 DocumentPool::~DocumentPool() {
@@ -78,59 +82,34 @@ DocumentPool::~DocumentPool() {
   retrieval_thread_.join();
 }
 
-std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
+std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document(std::string const& db_name, std::string const& col_name) {
   std::shared_ptr<bsoncxx::document::value> result {};
+  auto key = fmt::format("{}/{}", db_name, col_name);
 
-  if(documents_mutex_.try_lock_shared()) {
-    if (documents_.size()) {
-      size_t index = randomizer_.index_draw(documents_.size());
-      auto& doc = documents_[index];
-      result = doc.value;
-      ++doc.nb_used;
-      documents_mutex_.unlock_shared();
+  if(documents_mutex_.try_lock()) {
+    auto& current_documents = documents_[key];
+    if (current_documents.values.size()) {
+      size_t index = randomizer_.index_draw(current_documents.values.size());
+      auto& doc = current_documents.values[index];
+      result = doc;
+      ++current_documents.nb_used;
+      documents_mutex_.unlock();
       if (!retrieval_thread_working_) {
-        ++nb_used_;
         // Do not use <= or you would deadlock by spamming the retrieval
         // thread with multiple requests
-        if (reuse_factor_ * size_ == nb_used_)
-          retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
+        if (reuse_factor_ * size_ == current_documents.nb_used)
+          retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, db_name, col_name});
       }
     }
     else {
-      documents_mutex_.unlock_shared();
+      documents_mutex_.unlock();
       // Ask again for update
       if(0 == retrieve_queue_.size() && !retrieval_thread_working_)
-          retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
+          retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, db_name, col_name});
     }
   }
 
   return result; 
-}
-
-Hub::Hub(Randomizer& randomizer, std::string const& db_uri, 
-               update_method method, size_t size, size_t reuse_factor) 
-  : randomizer_{randomizer}, db_uri_{db_uri}, update_method_{method}, size_{size}, reuse_factor_{reuse_factor}
-{}
-
-DocumentPool& Hub::get_pool(std::string const& db_name, std::string const& col_name) {
-  auto key = fmt::format("{}/{}",db_name,col_name);
-  std::lock_guard<std::mutex> lock(pools_mutex_);
-  auto pool_it = pools_.find(key);
-  if (end(pools_) == pool_it) {
-    tie(pool_it, ignore) = pools_.emplace(piecewise_construct, forward_as_tuple(key), forward_as_tuple(randomizer_, db_uri_, db_name, col_name, update_method_, size_, reuse_factor_));
-  }
-  return pool_it->second;
-}
-
-HubCache::HubCache(Hub& hub) : hub_{hub} {}
-
-DocumentPool& HubCache::get_pool(std::string const& db_name, std::string const& col_name) {
-  auto key = fmt::format("{}/{}",db_name,col_name);
-  auto pool_it = pools_.find(key);
-  if (end(pools_) == pool_it) {
-    tie(pool_it, ignore) = pools_.emplace(key, &hub_.get_pool(db_name, col_name));
-  }
-  return *pool_it->second;
 }
 
 }  // namespace document_pool

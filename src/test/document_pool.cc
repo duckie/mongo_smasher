@@ -37,7 +37,8 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
 
     // Create a document pool
     Randomizer randomizer;
-    document_pool::DocumentPool pool {randomizer, default_uri, db_name, col_name, document_pool::update_method::latest, 1, 1};
+    document_pool::DocumentPool pool {randomizer, default_uri, document_pool::update_method::latest, 1, 1};
+    pool.draw_document(db_name,col_name);
     std::this_thread::sleep_for(chrono::milliseconds {100});
     
     // Insert a new one
@@ -46,7 +47,7 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
     collection.insert_one(d2.view());
 
     // Check cached document
-    auto doc = pool.draw_document();
+    auto doc = pool.draw_document(db_name,col_name);
     REQUIRE(doc);
     REQUIRE(LooseElement(doc->view())["value"].get<int>() == 1);
 
@@ -54,7 +55,7 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
     std::this_thread::sleep_for(chrono::milliseconds {100});
 
     // Check new one
-    doc = pool.draw_document();
+    doc = pool.draw_document(db_name,col_name);
     REQUIRE(doc);
     REQUIRE(LooseElement(doc->view())["value"].get<int>() == 2);
   }
@@ -71,7 +72,9 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
 
     // Create a document pool
     Randomizer randomizer;
-    document_pool::DocumentPool pool {randomizer, default_uri, db_name, col_name, document_pool::update_method::latest, nb_instances, nb_instances};
+    document_pool::DocumentPool pool {randomizer, default_uri, document_pool::update_method::latest, nb_instances, nb_instances};
+    // Launch a retrieval by trying to get a document
+    pool.draw_document(db_name,col_name);
     std::this_thread::sleep_for(chrono::milliseconds {100});
     
     // Insert new instances
@@ -83,7 +86,7 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
 
     // Check cached document
     for(int i=0; i < nb_instances*nb_instances; ++i) {
-      auto doc = pool.draw_document();
+      auto doc = pool.draw_document(db_name,col_name);
       REQUIRE(doc);
       REQUIRE(LooseElement(doc->view())["value"].get<int>() == 1);
     }
@@ -93,7 +96,7 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
 
     // Check new one
     for(int i=0; i < nb_instances*nb_instances; ++i) {
-      auto doc = pool.draw_document();
+      auto doc = pool.draw_document(db_name,col_name);
       REQUIRE(doc);
       REQUIRE(LooseElement(doc->view())["value"].get<int>() == 2);
     }
@@ -111,7 +114,8 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
 
     // Create a document pool
     Randomizer randomizer;
-    document_pool::DocumentPool pool {randomizer, default_uri, db_name, col_name, document_pool::update_method::latest, nb_instances, nb_instances};
+    document_pool::DocumentPool pool {randomizer, default_uri, document_pool::update_method::latest, nb_instances, nb_instances};
+    pool.draw_document(db_name,col_name);
     std::this_thread::sleep_for(chrono::milliseconds {100});
     
     // Insert new instances to be fetched later
@@ -133,7 +137,7 @@ TEST_CASE("Document Pool - Simple retrieval", "[document_pool]") {
       thread reader {[&](decltype(read_valid_promise)&& result) {
         int max = 0;
         for(int i=0; i < nb_instances*nb_instances*1e2; ++i) {
-          auto doc = pool.draw_document();
+          auto doc = pool.draw_document(db_name,col_name);
           if (doc) {
             auto value = LooseElement(doc->view())["value"].get<int>();
             if (max < value)
