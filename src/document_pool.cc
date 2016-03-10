@@ -78,11 +78,11 @@ DocumentPool::~DocumentPool() {
 }
 
 std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
-  size_t index = randomizer_.index_draw(size_);
   std::shared_ptr<bsoncxx::document::value> result {};
 
   if(documents_mutex_.try_lock_shared()) {
     if (documents_.size()) {
+      size_t index = randomizer_.index_draw(documents_.size());
       auto& doc = documents_[index];
       result = doc.value;
       ++doc.nb_used;
@@ -97,6 +97,9 @@ std::shared_ptr<bsoncxx::document::value> DocumentPool::draw_document() {
     }
     else {
       documents_mutex_.unlock_shared();
+      // Ask again for update
+      if(0 == retrieve_queue_.size() && !retrieval_thread_working_)
+          retrieve_queue_.push(ThreadCommand{thread_command_type::retrieve, {}});
     }
   }
 

@@ -57,8 +57,8 @@ class DocumentPool {
   // Number of documents consumed : a single document may be accounted multiple times here
   std::atomic<size_t> nb_used_; 
 
-  // This queue_ is used by the retrieval thread to now when it is supposed
-  // to start a new retrieval of if it should just stop
+  // This queue_ is used by the retrieval thread to know when it is supposed
+  // to start a new retrieval or if it should just stop
   Queue<ThreadCommand> retrieve_queue_;
 
   // Mutex to protect the pool between the retrieval thread 
@@ -71,6 +71,7 @@ class DocumentPool {
   //
   std::thread retrieval_thread_;
 
+  //
   std::atomic<bool> retrieval_thread_working_;
 
  public:
