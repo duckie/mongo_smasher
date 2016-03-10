@@ -37,9 +37,8 @@ struct Document {
 // updated regularly but not too much as not to impair real tests. Capacity and
 // update method may be chosen by user
 //
-// For current implementation, each collection get its own thread. A better would 
-// use only one for everybody. To study later on but much more complicated to 
-// implement properly and efficiently.
+// For current implementation, each collection get its own thread 
+// A better use case would be to merge all update requests here, 
 //
 class DocumentPool {
   // Shared randomizer
