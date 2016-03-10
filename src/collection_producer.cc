@@ -8,10 +8,12 @@ using namespace bsoncxx;
 namespace mongo_smasher {
 
 CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_t& queue,
+                                        document_pool::Hub& pool_hub,
                                        bsoncxx::document::view model,
                                        bsoncxx::stdx::string_view root_path)
     : pilot_{pilot},
       queue_{queue},
+      pool_hub_{pool_hub},
       randomizer_(model["values"].get_document().view(), root_path),
       model_(model),
       idle_time_{0} {

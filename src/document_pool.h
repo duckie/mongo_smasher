@@ -87,20 +87,38 @@ class DocumentPool {
 
 //
 // The hub stores one DocumentPool per collection
+//
+// This a shared object, thus must be synchronized. To avoid too much locks, 
+// consumers stores a @HubCache
+//
 class Hub {
   Randomizer& randomizer_;
   update_method update_method_;
   std::string const db_uri_;
-  std::string const db_name_;
   size_t const size_;
   size_t const reuse_factor_;
   std::map<std::string,DocumentPool> pools_;
+  std::mutex pools_mutex_;
 
  public:
-  Hub(Randomizer& randomizer, std::string const& db_uri, std::string const& db_name, 
+  Hub(Randomizer& randomizer, std::string const& db_uri, 
                update_method method, size_t size, size_t reuse_factor);
 
-  DocumentPool& get_pool(std::string const& col_name);
+  DocumentPool& get_pool(std::string const& db_name, std::string const& col_name);
+};
+
+// 
+// HubCache is stored in each producer thread to access DocumentPools
+//
+// To avoid a read lock useless unless at system startup
+//
+class HubCache {
+  Hub& hub_;
+  std::map<std::string,DocumentPool*> pools_;
+
+ public:
+  HubCache(Hub& hub);
+  DocumentPool& get_pool(std::string const& db_name, std::string const& col_name);
 };
 
 } // namespace document_pool

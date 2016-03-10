@@ -245,6 +245,7 @@ typename DocumentBatch::queue_t::duration_t InsertUnit::process_tick() {
     }
     bulk_docs_.emplace_back(document.extract());
     if (bulk_size_ <= bulk_docs_.size()) {
+      // TODO: Do not hard code db name here
       auto idle_time = queue_.push({bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
       nb_instances_ += bulk_size_;
       bulk_docs_.clear();
