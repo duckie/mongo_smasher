@@ -65,7 +65,13 @@ class CollectionConsumer {
   ThreadPilot& pilot_;
   typename ConsumerCommand::queue_t& queue_;
   CollectionHub hub_;
-  std::atomic<size_t> idle_time_;
+
+  // Stats
+  std::atomic<size_t> idle_time_ {};
+  std::atomic<size_t> nb_finds_ {};
+  std::atomic<size_t> nb_finds_hit_ {};
+  std::atomic<size_t> nb_documents_fetched_ {};
+  std::atomic<size_t> nb_documents_updated_ {};
 
  public:
   CollectionConsumer(ThreadPilot& pilot, typename ConsumerCommand::queue_t& queue,

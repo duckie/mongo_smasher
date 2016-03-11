@@ -1,6 +1,8 @@
 #include "collection_producer.h"
 #include "logger.h"
 #include "utils.h"
+#include "find_unit.h"
+#include "insert_unit.h"
 
 using namespace bsoncxx::stdx;
 using namespace bsoncxx;
@@ -25,6 +27,7 @@ CollectionProducer::CollectionProducer(ThreadPilot& pilot, ConsumerCommand::queu
 
 void CollectionProducer::run() {
   std::vector<InsertUnit> insert_units;
+  std::vector<FindUnit> find_units;
 
   // Compute weight ratio to apply
   double max_weight{0.};
@@ -38,10 +41,17 @@ void CollectionProducer::run() {
   }
 
   for (auto collection_element : model_["collections"].get_document().view()) {
-    log(log_level::debug, "Registering %s\n", collection_element.key().data());
+    log(log_level::debug, "Registering inserts for %s\n", collection_element.key().data());
     insert_units.emplace_back(randomizer_, queue_, collection_element.key(),
                               collection_element.get_document().view(),
                               weights[collection_element.key()] / max_weight);
+  }
+
+  for (auto collection_element : model_["collections"].get_document().view()) {
+    log(log_level::debug, "Registering finds for %s\n", collection_element.key().data());
+    //insert_units.emplace_back(randomizer_, queue_, collection_element.key(),
+                              //collection_element.get_document().view(),
+                              //weights[collection_element.key()] / max_weight);
   }
 
   while (pilot_.run) {

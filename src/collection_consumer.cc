@@ -48,7 +48,16 @@ void CollectionConsumer::run() {
       case command_type::delete_many:
         hub_.get_collection(batch.db.to_string(), batch.col.to_string()).delete_many(batch.payload[0].view(), batch.del_options);
         break;
-      case command_type::find:
+      case command_type::find: {
+        auto& collection = hub_.get_collection(batch.db.to_string(), batch.col.to_string());
+        auto cursor = collection.find(batch.payload[0].view(), batch.find_options);
+        ++nb_finds_;
+        if (cursor.end() != cursor.begin())
+          ++nb_finds_hit_;
+        for (auto& element : cursor) {
+          ++nb_documents_fetched_;
+        }
+                               }
         break;
       default:
         break;
