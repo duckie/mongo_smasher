@@ -7,12 +7,13 @@ using namespace bsoncxx;
 
 namespace mongo_smasher {
 
-CollectionProducer::CollectionProducer(ThreadPilot& pilot, DocumentBatch::queue_t& queue,
+CollectionProducer::CollectionProducer(ThreadPilot& pilot, ConsumerCommand::queue_t& queue,
                                        bsoncxx::document::view model,
-                                       bsoncxx::stdx::string_view root_path)
+                                       bsoncxx::stdx::string_view root_path, std::string const& db_uri)
     : pilot_{pilot},
       queue_{queue},
       randomizer_(model["values"].get_document().view(), root_path),
+      pool_{randomizer_, db_uri, document_pool::update_method::latest,10000,1000},
       model_(model),
       idle_time_{0} {
 }
@@ -44,7 +45,7 @@ void CollectionProducer::run() {
   }
 
   while (pilot_.run) {
-    typename DocumentBatch::queue_t::duration_t idle_time{};
+    typename ConsumerCommand::queue_t::duration_t idle_time{};
     for (auto& unit : insert_units) {
       idle_time += unit.process_tick();
     }

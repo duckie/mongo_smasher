@@ -19,17 +19,40 @@ mongocxx::collection& CollectionHub::get_collection(std::string const& db_name,
   return col_it->second;
 }
 
-CollectionConsumer::CollectionConsumer(ThreadPilot& pilot, typename DocumentBatch::queue_t& queue,
+CollectionConsumer::CollectionConsumer(ThreadPilot& pilot, typename ConsumerCommand::queue_t& queue,
                                        std::string db_uri)
     : pilot_{pilot}, queue_(queue), hub_{db_uri}, idle_time_{0} {
 }
 
 void CollectionConsumer::run() {
   while (pilot_.run) {
-    typename DocumentBatch::queue_t::duration_t idle_time;
+    typename ConsumerCommand::queue_t::duration_t idle_time;
     auto batch = queue_.pop(&idle_time);
     idle_time_ += idle_time.count();
-    hub_.get_collection(batch.db.to_string(), batch.col.to_string()).insert_many(batch.payload);
+    switch (batch.type) {
+      case command_type::insert_one:
+        hub_.get_collection(batch.db.to_string(), batch.col.to_string()).insert_one(batch.payload[0].view(), batch.insert_options);
+        break;
+      case command_type::insert_many:
+        hub_.get_collection(batch.db.to_string(), batch.col.to_string()).insert_many(batch.payload, batch.insert_options);
+        break;
+      case command_type::update_one:
+        hub_.get_collection(batch.db.to_string(), batch.col.to_string()).update_one(batch.payload[0].view(), batch.payload[1].view(), batch.update_options);
+        break;
+      case command_type::update_many:
+        hub_.get_collection(batch.db.to_string(), batch.col.to_string()).update_many(batch.payload[0].view(), batch.payload[1].view(), batch.update_options);
+        break;
+      case command_type::delete_one:
+        hub_.get_collection(batch.db.to_string(), batch.col.to_string()).insert_one(batch.payload[0].view(), batch.insert_options);
+        break;
+      case command_type::delete_many:
+        hub_.get_collection(batch.db.to_string(), batch.col.to_string()).delete_many(batch.payload[0].view(), batch.del_options);
+        break;
+      case command_type::find:
+        break;
+      default:
+        break;
+    };
   }
 }
 

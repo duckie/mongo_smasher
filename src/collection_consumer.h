@@ -24,18 +24,34 @@ class CollectionHub {
   mongocxx::collection& get_collection(std::string const& db_name, std::string const& collection_name);
 };
 
+enum class command_type : unsigned int {
+  insert_one,
+  insert_many,
+  update_one,
+  update_many,
+  delete_one,
+  delete_many,
+  find,
+  command_type_MAX
+};
+
 // 
-// The DocumentBatch stores destination and documents
+// The ConsumerCommand stores destination and documents
 //
 // Instances of this class are supposed to be exchanged between
 // producers and consumers through a queue.
 //
-struct DocumentBatch {
+struct ConsumerCommand {
   using payload_t = std::vector<bsoncxx::document::value>;
-  using queue_t = Queue<DocumentBatch>;
+  using queue_t = Queue<ConsumerCommand>;
+  command_type type;
   bsoncxx::stdx::string_view db;
   bsoncxx::stdx::string_view col;
   payload_t payload;
+  mongocxx::options::insert insert_options;
+  mongocxx::options::update update_options;
+  mongocxx::options::find find_options;
+  mongocxx::options::delete_options del_options;
 };
 
 //
@@ -47,12 +63,12 @@ struct DocumentBatch {
 //
 class CollectionConsumer {
   ThreadPilot& pilot_;
-  typename DocumentBatch::queue_t& queue_;
+  typename ConsumerCommand::queue_t& queue_;
   CollectionHub hub_;
   std::atomic<size_t> idle_time_;
 
  public:
-  CollectionConsumer(ThreadPilot& pilot, typename DocumentBatch::queue_t& queue,
+  CollectionConsumer(ThreadPilot& pilot, typename ConsumerCommand::queue_t& queue,
                      std::string db_uri);
 
   // Read from the queue until advised to stop by the ThreadPilot

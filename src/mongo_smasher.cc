@@ -78,12 +78,12 @@ void run_stream(Config const& config) {
   }
 
   ThreadPilot pilot{};
-  DocumentBatch::queue_t queue{100};
+  ConsumerCommand::queue_t queue{100};
 
   // Create producers
   std::list<ThreadRunner<CollectionProducer>> producers;
   for (size_t i = 0; i < config.nb_producers; ++i) {
-    producers.emplace_back(pilot, queue, view, root_path.data());
+    producers.emplace_back(pilot, queue, view, root_path.data(), db_uri);
   }
 
   // Create consumers

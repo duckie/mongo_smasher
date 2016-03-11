@@ -3,6 +3,7 @@
 #include "randomizer.h"
 #include "insert_unit.h"
 #include "collection_consumer.h"
+#include "document_pool.h"
 #include <atomic>
 
 namespace mongo_smasher {
@@ -14,9 +15,10 @@ namespace mongo_smasher {
 // ressources to produce randomized documents.
 //
 class CollectionProducer {
-  typename DocumentBatch::queue_t& queue_;
+  typename ConsumerCommand::queue_t& queue_;
   ThreadPilot& pilot_;
   Randomizer randomizer_;
+  document_pool::DocumentPool pool_;
   bsoncxx::document::view model_;
   std::atomic<size_t> idle_time_;
 
@@ -30,9 +32,10 @@ class CollectionProducer {
   //              which is $root_object.collections.$collection_name
   // @param root_path to be set at the root path of the .json root file
   //                  needed to interpret coorectly relative pathes
+  // @apram db_ur is used by the document pool to fetch reference documents
   //
-  CollectionProducer(ThreadPilot& pilot, typename DocumentBatch::queue_t& queue,
-                     bsoncxx::document::view model, bsoncxx::stdx::string_view root_path);
+  CollectionProducer(ThreadPilot& pilot, typename ConsumerCommand::queue_t& queue,
+                     bsoncxx::document::view model, bsoncxx::stdx::string_view root_path,std::string const& db_uri);
   CollectionProducer(CollectionProducer&&) = default;
   CollectionProducer(CollectionProducer const&) = delete;
   

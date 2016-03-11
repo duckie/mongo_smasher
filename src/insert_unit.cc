@@ -14,7 +14,7 @@ namespace {
 std::regex value_regex{"\\$[a-zA-Z0-9_-]+"};
 }
 
-InsertUnit::InsertUnit(Randomizer &randomizer, typename DocumentBatch::queue_t &queue,
+InsertUnit::InsertUnit(Randomizer &randomizer, typename ConsumerCommand::queue_t &queue,
                        bsoncxx::stdx::string_view name, bsoncxx::document::view const &collection,
                        double normalized_weight)
     : randomizer_{randomizer},
@@ -232,7 +232,7 @@ void InsertUnit::process_element(bsoncxx::document::element const &element,
   }
 }
 
-typename DocumentBatch::queue_t::duration_t InsertUnit::process_tick() {
+typename ConsumerCommand::queue_t::duration_t InsertUnit::process_tick() {
   if (1. <= weight_ || randomizer_.existence_draw() <= weight_) {
     bsx::builder::stream::document document;
     for (auto value : model_.get_document().view()) {
@@ -245,7 +245,7 @@ typename DocumentBatch::queue_t::duration_t InsertUnit::process_tick() {
     }
     bulk_docs_.emplace_back(document.extract());
     if (bulk_size_ <= bulk_docs_.size()) {
-      auto idle_time = queue_.push({bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
+      auto idle_time = queue_.push({command_type::insert_many, bsx::stdx::string_view{"test"}, name_, std::move(bulk_docs_)});
       nb_instances_ += bulk_size_;
       bulk_docs_.clear();
       return idle_time;

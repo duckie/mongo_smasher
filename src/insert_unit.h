@@ -54,7 +54,7 @@ struct ValueParams {
 
 class InsertUnit {
   Randomizer& randomizer_;
-  typename DocumentBatch::queue_t& queue_;
+  typename ConsumerCommand::queue_t& queue_;
   bsoncxx::stdx::string_view name_;
   bsoncxx::document::element model_;
   size_t nb_instances_{0u};
@@ -84,7 +84,7 @@ class InsertUnit {
                        bsoncxx::builder::stream::document& ctx);
 
  public:
-  InsertUnit(Randomizer& randomizer, typename DocumentBatch::queue_t& queue,
+  InsertUnit(Randomizer& randomizer, typename ConsumerCommand::queue_t& queue,
                  bsoncxx::stdx::string_view name, bsoncxx::document::view const& collection,
                  double normalized_weight);
 
@@ -94,7 +94,7 @@ class InsertUnit {
   // Queues could block if the consumers are too slow, making 
   // InsertUnit to delay.
   //
-  typename DocumentBatch::queue_t::duration_t process_tick();
+  typename ConsumerCommand::queue_t::duration_t process_tick();
 
   // Returns total of documents produces since beginning
   size_t nb_inserted() const;
