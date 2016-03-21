@@ -39,7 +39,7 @@
         "frequency":"max",
         "insert":{
           "bulk_size":1,
-          "weight":1.0
+          "weight":0.0
         },
         "update":{
           "patterns":[]
@@ -49,19 +49,36 @@
             {
               "weight":1.0,
               "criteria":{
-                "name":"$any"
+                "grades.score":"53"
               },
               "projection":{
                 "address":1
               },
-              "limit":1000
+              "limit":1
+            },
+            {
+              "weight":1.0,
+              "criteria":{
+                "name":"$.name"
+              },
+              "projection":{
+                "address":1
+              },
+              "limit":1
+            }
+          ]
+        },
+        "delete":{
+          "patterns":[
+            {
+              "weight":0.0,
+              "criteria":{
+                "name":"$"
+              }
             }
           ]
         }
       }
-    },
-    "orders":{
-      "schema":{"price":"$price"}
     }
   }
 }

@@ -162,12 +162,7 @@ template <class T>
 void InsertUnit::process_element(T const &element, bsoncxx::builder::stream::array &ctx) {
   if (element.type() == bsx::type::k_utf8) {
     auto value = to_str_view(element);
-    // get_value_params(value);
     process_value(ctx, get_value_params(value));
-    // ctx << randomizer_.get_value_pusher(name_, value.substr(1)).get_pusher();
-    //// First stage are statements over the key
-    // if ('$' == value[0]) {
-    //}
   } else if (element.type() == bsx::type::k_document) {
     bsx::builder::stream::document child;
     for (auto value : element.get_document().view()) {
